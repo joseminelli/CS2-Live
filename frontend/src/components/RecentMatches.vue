@@ -107,13 +107,29 @@
         <div class="card-bottom">
           <div v-if="match.streams_list && match.streams_list.length > 0" class="streams-buttons">
             <button 
-              v-for="(stream, index) in match.streams_list" 
-              :key="index"
+              v-for="(stream, index) in getVisibleStreams(match)" 
+              :key="`${match.id}-stream-${index}`"
               @click="openStream(stream)"
               class="btn-stream"
               :title="stream.language"
             >
               {{ getStreamName(stream) }}
+            </button>
+            <button
+              v-if="getHiddenStreamsCount(match) > 0"
+              class="btn-stream btn-stream-toggle"
+              type="button"
+              @click="toggleStreams(match)"
+            >
+              +{{ getHiddenStreamsCount(match) }}
+            </button>
+            <button
+              v-else-if="isStreamsExpanded(match) && (match.streams_list?.length || 0) > STREAMS_PREVIEW_LIMIT"
+              class="btn-stream btn-stream-toggle"
+              type="button"
+              @click="toggleStreams(match)"
+            >
+              menos
             </button>
           </div>
           <div v-else class="no-streams">
@@ -154,6 +170,8 @@ const pageSize = 20
 const teamModalOpen = ref(false)
 const selectedTeam = ref({})
 const globalSearchMatches = ref([])
+const STREAMS_PREVIEW_LIMIT = 5
+const expandedStreams = ref({})
 const globalSearchLoading = ref(false)
 const hasGlobalSearchDataset = ref(false)
 const isApplyingRouteQuery = ref(false)
@@ -339,6 +357,33 @@ const openStream = (stream) => {
     window.open(stream.raw_url, '_blank')
   } else if (stream.embed_url) {
     window.open(stream.embed_url, '_blank')
+  }
+}
+
+const getMatchKey = (match) => String(match?.id ?? '')
+
+const isStreamsExpanded = (match) => Boolean(expandedStreams.value[getMatchKey(match)])
+
+const getStreamsForMatch = (match) => Array.isArray(match?.streams_list) ? match.streams_list : []
+
+const getVisibleStreams = (match) => {
+  const all = getStreamsForMatch(match)
+  if (all.length <= STREAMS_PREVIEW_LIMIT) return all
+  return isStreamsExpanded(match) ? all : all.slice(0, STREAMS_PREVIEW_LIMIT)
+}
+
+const getHiddenStreamsCount = (match) => {
+  const all = getStreamsForMatch(match)
+  if (isStreamsExpanded(match)) return 0
+  return Math.max(all.length - STREAMS_PREVIEW_LIMIT, 0)
+}
+
+const toggleStreams = (match) => {
+  const key = getMatchKey(match)
+  if (!key) return
+  expandedStreams.value = {
+    ...expandedStreams.value,
+    [key]: !expandedStreams.value[key]
   }
 }
 
@@ -1011,6 +1056,11 @@ watch(
   background: rgba(64, 224, 208, 0.25);
   border-color: rgba(64, 224, 208, 0.5);
   box-shadow: 0 0 10px rgba(64, 224, 208, 0.2);
+}
+
+.btn-stream-toggle {
+  border-style: dashed;
+  font-weight: 800;
 }
 
 .no-streams {

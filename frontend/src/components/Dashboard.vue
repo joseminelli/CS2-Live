@@ -10,7 +10,7 @@
         <span v-else class="sync-loading">⟳ Atualizando...</span>
       </div>
     </div>
-    
+
     <div v-if="loading" class="stats-grid">
       <div v-for="n in 4" :key="`stat-skeleton-${n}`" class="stat-card stat-skeleton-card">
         <div class="stat-header">
@@ -23,7 +23,8 @@
     </div>
 
     <div v-else class="stats-grid">
-      <div class="stat-card live-card" role="button" tabindex="0" @click="goToRoute('live')" @keyup.enter="goToRoute('live')">
+      <div class="stat-card live-card" role="button" tabindex="0" @click="goToRoute('live')"
+        @keyup.enter="goToRoute('live')">
         <div class="stat-header">
           <span class="stat-icon live">🔴</span>
           <span class="stat-title">Jogos Ao Vivo</span>
@@ -31,8 +32,9 @@
         <div class="stat-value">{{ liveCount }}</div>
         <div class="stat-footer">matches em progresso</div>
       </div>
-      
-      <div class="stat-card upcoming-card" role="button" tabindex="0" @click="goToRoute('upcoming')" @keyup.enter="goToRoute('upcoming')">
+
+      <div class="stat-card upcoming-card" role="button" tabindex="0" @click="goToRoute('upcoming')"
+        @keyup.enter="goToRoute('upcoming')">
         <div class="stat-header">
           <span class="stat-icon">📅</span>
           <span class="stat-title">Próximos Jogos</span>
@@ -40,8 +42,9 @@
         <div class="stat-value">{{ upcomingCount }}</div>
         <div class="stat-footer">eventos agendados</div>
       </div>
-      
-      <div class="stat-card finished-card" role="button" tabindex="0" @click="goToRoute('recent')" @keyup.enter="goToRoute('recent')">
+
+      <div class="stat-card finished-card" role="button" tabindex="0" @click="goToRoute('recent')"
+        @keyup.enter="goToRoute('recent')">
         <div class="stat-header">
           <span class="stat-icon">✓</span>
           <span class="stat-title">Finalizados</span>
@@ -49,8 +52,9 @@
         <div class="stat-value">{{ recentCount }}</div>
         <div class="stat-footer">resultados disponíveis</div>
       </div>
-      
-      <div class="stat-card teams-card" role="button" tabindex="0" @click="goToRoute('tournaments')" @keyup.enter="goToRoute('tournaments')">
+
+      <div class="stat-card teams-card" role="button" tabindex="0" @click="goToRoute('tournaments')"
+        @keyup.enter="goToRoute('tournaments')">
         <div class="stat-header">
           <span class="stat-icon">🏆</span>
           <span class="stat-title">Torneios</span>
@@ -59,15 +63,15 @@
         <div class="stat-footer">campeonatos em base</div>
       </div>
     </div>
-    
+
     <!-- Live Matches Section -->
     <div class="section">
       <div class="section-header">
-        <h2 class="section-title">🔴 Jogos Ao Vivo</h2>
+        <h2 class="section-title">Jogos Ao Vivo</h2>
         <span class="live-pulse">LIVE</span>
         <button class="section-action" @click="goToRoute('live')">Ver todos</button>
       </div>
-      
+
       <div v-if="loading" class="matches-grid">
         <div v-for="n in 3" :key="`dash-live-skeleton-${n}`" class="live-match-card skeleton-match-card">
           <div class="skeleton-line skeleton-line-sm"></div>
@@ -80,20 +84,14 @@
         <p>Nenhum jogo ao vivo no momento</p>
       </div>
       <div v-else class="matches-grid">
-        <div
-          v-for="match in liveMatches.slice(0, 3)"
-          :key="match.id"
-          class="live-match-card"
-          role="button"
-          tabindex="0"
-          @click="openLiveMatch(match)"
-          @keyup.enter="openLiveMatch(match)"
-        >
+        <div v-for="match in liveMatches.slice(0, 3)" :key="match.id" class="live-match-card" role="button" tabindex="0"
+          @click="openLiveMatch(match)" @keyup.enter="openLiveMatch(match)">
           <div class="match-status">EM PROGRESSO</div>
           <div class="match-content">
             <div class="match-team">
               <button class="team-logo-btn" type="button" @click.stop="openTeamModal(match.opponents[0]?.opponent)">
-                <img v-if="match.opponents[0]?.opponent?.image_url" :src="match.opponents[0].opponent.image_url" :alt="match.opponents[0].opponent.name" class="team-logo">
+                <img v-if="match.opponents[0]?.opponent?.image_url" :src="match.opponents[0].opponent.image_url"
+                  :alt="match.opponents[0].opponent.name" class="team-logo">
                 <div v-else class="team-logo-fallback">?</div>
               </button>
               <span class="team-name">{{ match.opponents[0]?.opponent?.name || 'TBD' }}</span>
@@ -106,7 +104,8 @@
             <div class="match-team">
               <span class="team-name">{{ match.opponents[1]?.opponent?.name || 'TBD' }}</span>
               <button class="team-logo-btn" type="button" @click.stop="openTeamModal(match.opponents[1]?.opponent)">
-                <img v-if="match.opponents[1]?.opponent?.image_url" :src="match.opponents[1].opponent.image_url" :alt="match.opponents[1].opponent.name" class="team-logo">
+                <img v-if="match.opponents[1]?.opponent?.image_url" :src="match.opponents[1].opponent.image_url"
+                  :alt="match.opponents[1].opponent.name" class="team-logo">
                 <div v-else class="team-logo-fallback">?</div>
               </button>
             </div>
@@ -114,14 +113,14 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Upcoming Matches Section -->
     <div class="section">
       <div class="section-header">
-        <h2 class="section-title">📅 Próximos Jogos</h2>
+        <h2 class="section-title">Próximos Jogos</h2>
         <button class="section-action" @click="goToRoute('upcoming')">Ver todos</button>
       </div>
-      
+
       <div v-if="loading" class="upcoming-list">
         <div v-for="n in 5" :key="`dash-upcoming-skeleton-${n}`" class="upcoming-item skeleton-upcoming-item">
           <div class="skeleton-line skeleton-line-sm"></div>
@@ -133,15 +132,8 @@
         <p>Nenhum jogo próximo agendado</p>
       </div>
       <div v-else class="upcoming-list">
-        <div
-          v-for="match in upcomingMatches.slice(0, 5)"
-          :key="match.id"
-          class="upcoming-item"
-          role="button"
-          tabindex="0"
-          @click="goToRoute('upcoming')"
-          @keyup.enter="goToRoute('upcoming')"
-        >
+        <div v-for="match in upcomingMatches.slice(0, 5)" :key="match.id" class="upcoming-item" role="button"
+          tabindex="0" @click="goToRoute('upcoming')" @keyup.enter="goToRoute('upcoming')">
           <div class="upcoming-time">{{ formatDateTime(match.scheduled_at) }}</div>
           <div class="upcoming-match">
             <span class="team-name-short">{{ match.opponents[0]?.opponent?.name || 'TBD' }}</span>
@@ -291,8 +283,15 @@ onMounted(async () => {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .stats-grid {
@@ -370,8 +369,17 @@ onMounted(async () => {
 }
 
 @keyframes blink {
-  0%, 50%, 100% { opacity: 1; }
-  25%, 75% { opacity: 0.5; }
+
+  0%,
+  50%,
+  100% {
+    opacity: 1;
+  }
+
+  25%,
+  75% {
+    opacity: 0.5;
+  }
 }
 
 .stat-title {
@@ -476,8 +484,15 @@ onMounted(async () => {
 }
 
 @keyframes liveGlow {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 .match-status {
@@ -593,6 +608,8 @@ onMounted(async () => {
 .skeleton-line {
   height: 12px;
   width: 100%;
+  margin-top: 5px;
+  margin-bottom: 5px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(64, 224, 208, 0.14), rgba(64, 224, 208, 0.34), rgba(64, 224, 208, 0.14));
   background-size: 220% 100%;
@@ -622,6 +639,7 @@ onMounted(async () => {
   from {
     background-position: 220% 0;
   }
+
   to {
     background-position: -220% 0;
   }
@@ -690,9 +708,11 @@ onMounted(async () => {
   font-size: 13px;
   font-weight: 600;
   padding: 6px 12px;
+  width: fit-content;
   background: rgba(30, 144, 255, 0.15);
   color: #6496ff;
   border-radius: 6px;
+  justify-self: end;
   text-align: right;
 }
 
@@ -700,7 +720,7 @@ onMounted(async () => {
   .matches-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .page-title {
     font-size: 44px;
   }
@@ -711,7 +731,7 @@ onMounted(async () => {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .stats-grid {
     grid-template-columns: 1fr;
     gap: 14px;
@@ -733,7 +753,7 @@ onMounted(async () => {
   .section-action {
     margin-left: 0;
   }
-  
+
   .upcoming-item {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -778,11 +798,11 @@ onMounted(async () => {
     font-size: 14px;
     max-width: 110px;
   }
-  
+
   .page-title {
     font-size: 28px;
   }
-  
+
   .section-title {
     font-size: 18px;
   }
@@ -812,4 +832,3 @@ onMounted(async () => {
   }
 }
 </style>
-
