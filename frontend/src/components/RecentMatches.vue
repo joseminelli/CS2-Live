@@ -1113,6 +1113,7 @@ watch(
 
   .matches-container {
     gap: 12px;
+    grid-template-columns: 1fr
   }
 
   .score-box {

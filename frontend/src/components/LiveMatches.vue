@@ -866,15 +866,15 @@ watch(
   font-size: 14px;
 }
 
-@media (max-width: 1024px) {
-  .live-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 768px) {
   .page-title {
     font-size: 32px;
+  }
+
+  .live-grid.live-grid-cols-1,
+  .live-grid.live-grid-cols-2,
+  .live-grid.live-grid-cols-3 {
+    grid-template-columns: 1fr;
   }
 }
 
