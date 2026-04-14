@@ -50,13 +50,13 @@
         <div class="stat-footer">resultados disponíveis</div>
       </div>
       
-      <div class="stat-card teams-card" role="button" tabindex="0" @click="goToRoute('teams')" @keyup.enter="goToRoute('teams')">
+      <div class="stat-card teams-card" role="button" tabindex="0" @click="goToRoute('tournaments')" @keyup.enter="goToRoute('tournaments')">
         <div class="stat-header">
-          <span class="stat-icon">👥</span>
-          <span class="stat-title">Times CS2</span>
+          <span class="stat-icon">🏆</span>
+          <span class="stat-title">Torneios</span>
         </div>
-        <div class="stat-value">{{ teamCount }}</div>
-        <div class="stat-footer">times competitivos</div>
+        <div class="stat-value">{{ tournamentCount }}</div>
+        <div class="stat-footer">campeonatos em base</div>
       </div>
     </div>
     
@@ -92,19 +92,23 @@
           <div class="match-status">EM PROGRESSO</div>
           <div class="match-content">
             <div class="match-team">
-              <img v-if="match.opponents[0]?.opponent?.image_url" :src="match.opponents[0].opponent.image_url" :alt="match.opponents[0].opponent.name" class="team-logo">
-              <div v-else class="team-logo-fallback">?</div>
+              <button class="team-logo-btn" type="button" @click.stop="openTeamModal(match.opponents[0]?.opponent)">
+                <img v-if="match.opponents[0]?.opponent?.image_url" :src="match.opponents[0].opponent.image_url" :alt="match.opponents[0].opponent.name" class="team-logo">
+                <div v-else class="team-logo-fallback">?</div>
+              </button>
               <span class="team-name">{{ match.opponents[0]?.opponent?.name || 'TBD' }}</span>
             </div>
             <div class="match-score">
-              <span class="score">{{ match.results[0]?.score || '-' }}</span>
+              <span class="score">{{ match.results[0]?.score || '0' }}</span>
               <span class="divider">:</span>
-              <span class="score">{{ match.results[1]?.score || '-' }}</span>
+              <span class="score">{{ match.results[1]?.score || '0' }}</span>
             </div>
             <div class="match-team">
               <span class="team-name">{{ match.opponents[1]?.opponent?.name || 'TBD' }}</span>
-              <img v-if="match.opponents[1]?.opponent?.image_url" :src="match.opponents[1].opponent.image_url" :alt="match.opponents[1].opponent.name" class="team-logo">
-              <div v-else class="team-logo-fallback">?</div>
+              <button class="team-logo-btn" type="button" @click.stop="openTeamModal(match.opponents[1]?.opponent)">
+                <img v-if="match.opponents[1]?.opponent?.image_url" :src="match.opponents[1].opponent.image_url" :alt="match.opponents[1].opponent.name" class="team-logo">
+                <div v-else class="team-logo-fallback">?</div>
+              </button>
             </div>
           </div>
         </div>
@@ -148,6 +152,8 @@
         </div>
       </div>
     </div>
+
+    <TeamInfoModal v-model="teamModalOpen" :team="selectedTeam" />
   </div>
 </template>
 
@@ -156,6 +162,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { dashboardAPI } from '../api.js'
 import { getCompetitionPriority } from '../utils/matchDisplay.js'
+import TeamInfoModal from './TeamInfoModal.vue'
 
 const router = useRouter()
 
@@ -163,12 +170,14 @@ const loading = ref(true)
 const liveMatches = ref([])
 const upcomingMatches = ref([])
 const recentMatches = ref([])
-const teams = ref([])
 
 const liveCount = ref(0)
 const upcomingCount = ref(0)
 const recentCount = ref(0)
-const teamCount = ref(0)
+const tournamentCount = ref(0)
+
+const teamModalOpen = ref(false)
+const selectedTeam = ref({})
 
 const goToRoute = (routeName) => {
   router.push({ name: routeName })
@@ -190,6 +199,12 @@ const openLiveMatch = (match) => {
   }
 
   goToRoute('live')
+}
+
+const openTeamModal = (team) => {
+  if (!team?.name) return
+  selectedTeam.value = team
+  teamModalOpen.value = true
 }
 
 const sortByCompetitionImportance = (items) => {
@@ -216,12 +231,10 @@ onMounted(async () => {
     liveMatches.value = sortByCompetitionImportance(summary.liveMatches || [])
     upcomingMatches.value = sortByCompetitionImportance(summary.upcomingMatches || [])
     recentMatches.value = sortByCompetitionImportance(summary.recentMatches || [])
-    teams.value = summary.teams || []
-
     liveCount.value = summary.liveCount ?? liveMatches.value.length
     upcomingCount.value = summary.upcomingCount ?? upcomingMatches.value.length
     recentCount.value = summary.recentCount ?? recentMatches.value.length
-    teamCount.value = summary.teamCount ?? teams.value.length
+    tournamentCount.value = summary.tournamentCount ?? summary.tournamentsCount ?? summary.tournaments?.length ?? 0
   } catch (error) {
     console.error('Error loading dashboard data:', error)
   } finally {
@@ -510,6 +523,14 @@ onMounted(async () => {
   background: rgba(0, 0, 0, 0.2);
   padding: 6px;
   border: 1px solid rgba(64, 224, 208, 0.15);
+}
+
+.team-logo-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  line-height: 0;
 }
 
 .team-logo-fallback {

@@ -4,7 +4,6 @@ import LiveMatches from './components/LiveMatches.vue'
 import UpcomingMatches from './components/UpcomingMatches.vue'
 import RecentMatches from './components/RecentMatches.vue'
 import Tournaments from './components/Tournaments.vue'
-import Teams from './components/Teams.vue'
 
 const routes = [
   { path: '/', redirect: { name: 'dashboard' } },
@@ -13,7 +12,7 @@ const routes = [
   { path: '/proximos', name: 'upcoming', component: UpcomingMatches },
   { path: '/resultados', name: 'recent', component: RecentMatches },
   { path: '/torneios', name: 'tournaments', component: Tournaments },
-  { path: '/times', name: 'teams', component: Teams }
+  { path: '/times', redirect: { name: 'tournaments' } }
 ]
 
 const router = createRouter({

@@ -56,8 +56,7 @@ const navItems = [
   { id: 'live', icon: '🔴', label: 'Ao Vivo' },
   { id: 'upcoming', icon: '📅', label: 'Próximos' },
   { id: 'recent', icon: '📈', label: 'Recentes' },
-  { id: 'tournaments', icon: '🏆', label: 'Torneios' },
-  { id: 'teams', icon: '👥', label: 'Times' }
+  { id: 'tournaments', icon: '🏆', label: 'Torneios' }
 ]
 
 const viewNames = {
@@ -65,8 +64,7 @@ const viewNames = {
   'live': 'Jogos Ao Vivo',
   'upcoming': 'Próximos Jogos',
   'recent': 'Resultados Recentes',
-  'tournaments': 'Torneios CS2',
-  'teams': 'Times Competitivos'
+  'tournaments': 'Torneios CS2'
 }
 
 const getCurrentViewName = () => {

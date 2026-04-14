@@ -780,7 +780,15 @@ const filteredChampionships = computed(() => {
     result = result.filter((champ) => champ.status === selectedStatus.value)
   }
 
-  return result.sort((a, b) => getChampionshipPriority(b) - getChampionshipPriority(a) || new Date(b.latestDate || 0) - new Date(a.latestDate || 0))
+  return result.sort((a, b) => {
+    const priorityDiff = getChampionshipPriority(b) - getChampionshipPriority(a)
+    if (priorityDiff !== 0) return priorityDiff
+
+    const statusDiff = (statusPriority[b.status] || 0) - (statusPriority[a.status] || 0)
+    if (statusDiff !== 0) return statusDiff
+
+    return new Date(b.latestDate || 0) - new Date(a.latestDate || 0)
+  })
 })
 
 const toggleExpand = (id) => {

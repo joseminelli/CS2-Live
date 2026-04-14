@@ -70,8 +70,7 @@ const navItems = [
   { id: 'live', label: 'Ao Vivo' },
   { id: 'upcoming', label: 'Próximos' },
   { id: 'recent', label: 'Resultados' },
-  { id: 'tournaments', label: 'Torneios' },
-  { id: 'teams', label: 'Times' }
+  { id: 'tournaments', label: 'Torneios' }
 ]
 
 const handleScroll = () => {

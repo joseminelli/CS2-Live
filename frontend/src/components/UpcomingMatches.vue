@@ -56,13 +56,15 @@
         
         <div class="card-content">
           <div class="team-info team-left">
-            <img 
-              v-if="match.opponents[0]?.opponent?.image_url" 
-              :src="match.opponents[0].opponent.image_url" 
-              :alt="match.opponents[0].opponent.name"
-              class="team-logo"
-            >
-            <div v-else class="team-logo-fallback">?</div>
+            <button class="team-logo-btn" type="button" @click="openTeamModal(match.opponents[0]?.opponent)">
+              <img 
+                v-if="match.opponents[0]?.opponent?.image_url" 
+                :src="match.opponents[0].opponent.image_url" 
+                :alt="match.opponents[0].opponent.name"
+                class="team-logo"
+              >
+              <div v-else class="team-logo-fallback">?</div>
+            </button>
             <h3 class="team-name">{{ getTeamName(match.opponents[0]) }}</h3>
           </div>
           
@@ -73,13 +75,15 @@
           
           <div class="team-info team-right">
             <h3 class="team-name">{{ getTeamName(match.opponents[1]) }}</h3>
-            <img 
-              v-if="match.opponents[1]?.opponent?.image_url" 
-              :src="match.opponents[1].opponent.image_url" 
-              :alt="match.opponents[1].opponent.name"
-              class="team-logo"
-            >
-            <div v-else class="team-logo-fallback">?</div>
+            <button class="team-logo-btn" type="button" @click="openTeamModal(match.opponents[1]?.opponent)">
+              <img 
+                v-if="match.opponents[1]?.opponent?.image_url" 
+                :src="match.opponents[1].opponent.image_url" 
+                :alt="match.opponents[1].opponent.name"
+                class="team-logo"
+              >
+              <div v-else class="team-logo-fallback">?</div>
+            </button>
           </div>
         </div>
         
@@ -88,6 +92,8 @@
         </div>
       </div>
     </div>
+
+    <TeamInfoModal v-model="teamModalOpen" :team="selectedTeam" />
 
     <div class="pagination" v-if="!loading && matches.length > 0">
       <button class="pagination-btn" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">Anterior</button>
@@ -103,6 +109,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { matchesAPI } from '../api.js'
 import { getCompetitionName, getPhaseName, getTeamName } from '../utils/matchDisplay.js'
 import { getCompetitionPriority } from '../utils/matchDisplay.js'
+import TeamInfoModal from './TeamInfoModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -114,6 +121,8 @@ const sortBy = ref('date')
 const currentPage = ref(1)
 const hasNextPage = ref(false)
 const pageSize = 20
+const teamModalOpen = ref(false)
+const selectedTeam = ref({})
 
 const sortOptions = [
   { key: 'date', label: '📅 Data' },
@@ -142,6 +151,12 @@ const getPhase = (match) => {
 
 const getMatchType = (match) => {
   return match.match_type === 'best_of_three' ? 'BO3' : match.match_type === 'best_of_five' ? 'BO5' : 'BO1'
+}
+
+const openTeamModal = (team) => {
+  if (!team?.name) return
+  selectedTeam.value = team
+  teamModalOpen.value = true
 }
 
 const filteredMatches = computed(() => {
@@ -463,6 +478,14 @@ watch(
 
 .team-info.team-right {
   flex-direction: column-reverse;
+}
+
+.team-logo-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  line-height: 0;
 }
 
 .team-logo {

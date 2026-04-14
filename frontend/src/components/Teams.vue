@@ -15,18 +15,42 @@
         >
         <span class="search-icon">🔍</span>
       </div>
-      
-      <div class="sort-controls">
-        <button 
-          v-for="opt in sortOptions"
+      <div class="filter-grid">
+        <label class="field-group">
+          <span class="field-label">Ordenar</span>
+          <select v-model="sortBy" class="select-input">
+            <option v-for="opt in sortOptions" :key="opt.key" :value="opt.key">
+              {{ opt.label }}
+            </option>
+          </select>
+        </label>
+
+        <label class="field-group">
+          <span class="field-label">Região</span>
+          <select v-model="regionFilter" class="select-input">
+            <option value="all">Todas</option>
+            <option v-for="region in availableRegions" :key="region" :value="region">
+              {{ region }}
+            </option>
+          </select>
+        </label>
+      </div>
+
+      <div class="quick-filters">
+        <button
+          v-for="opt in quickFilters"
           :key="opt.key"
-          @click="sortBy = opt.key"
           class="sort-btn"
-          :class="{ active: sortBy === opt.key }"
+          :class="{ active: activeFilter === opt.key }"
+          @click="activeFilter = opt.key"
         >
           {{ opt.label }}
         </button>
       </div>
+
+      <p class="ranking-note">
+        Destaque local por atividade e completude do perfil. Use os filtros para achar times menos conhecidos.
+      </p>
     </div>
     
     <div v-if="loading" class="loading-state">
@@ -107,16 +131,52 @@ const router = useRouter()
 const teams = ref([])
 const loading = ref(true)
 const searchQuery = ref('')
-const sortBy = ref('name')
+const sortBy = ref('featured')
+const activeFilter = ref('all')
+const regionFilter = ref('all')
 const currentPage = ref(1)
 const hasNextPage = ref(false)
 const pageSize = 24
 
 const sortOptions = [
+  { key: 'featured', label: '✨ Destaque' },
+  { key: 'recent', label: '🕒 Recentes' },
   { key: 'name', label: '📌 Nome' },
   { key: 'region', label: '🌍 Região' },
   { key: 'players', label: '👥 Jogadores' }
 ]
+
+const quickFilters = [
+  { key: 'all', label: 'Todos' },
+  { key: 'roster', label: 'Com elenco' },
+  { key: 'logo', label: 'Com logo' },
+  { key: 'active', label: 'Ativos' }
+]
+
+const availableRegions = computed(() => {
+  const regions = new Set()
+
+  teams.value.forEach((team) => {
+    if (team.region) {
+      regions.add(team.region)
+    }
+  })
+
+  return Array.from(regions).sort((a, b) => a.localeCompare(b))
+})
+
+const parseDate = (value) => {
+  const timestamp = Date.parse(value)
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+const getFeaturedScore = (team) => {
+  const updatedScore = parseDate(team.modified_at)
+  const rosterScore = (team.players?.length || 0) * 86400000
+  const logoScore = team.image_url ? 43200000 : 0
+
+  return updatedScore + rosterScore + logoScore
+}
 
 const parsePage = (value) => {
   const parsed = Number.parseInt(value, 10)
@@ -143,10 +203,11 @@ const fetchTeams = async () => {
     all: false,
     per_page: pageSize,
     page: currentPage.value,
-    sort: 'name'
+    sort: '-modified_at'
   })
   teams.value = response.data || []
   hasNextPage.value = teams.value.length === pageSize
+
   loading.value = false
 }
 
@@ -157,11 +218,43 @@ const filteredTeams = computed(() => {
     const query = searchQuery.value.toLowerCase()
     result = result.filter(t => 
       t.name?.toLowerCase().includes(query) ||
-      t.region?.toLowerCase().includes(query)
+      t.region?.toLowerCase().includes(query) ||
+      t.players?.some(player => player.name?.toLowerCase().includes(query))
     )
   }
-  
-  if (sortBy.value === 'region') {
+
+  if (regionFilter.value !== 'all') {
+    result = result.filter(team => team.region === regionFilter.value)
+  }
+
+  if (activeFilter.value === 'roster') {
+    result = result.filter(team => (team.players?.length || 0) > 0)
+  } else if (activeFilter.value === 'logo') {
+    result = result.filter(team => Boolean(team.image_url))
+  } else if (activeFilter.value === 'active') {
+    const threshold = Date.now() - (180 * 24 * 60 * 60 * 1000)
+    result = result.filter(team => parseDate(team.modified_at) >= threshold)
+  }
+
+  if (sortBy.value === 'featured') {
+    result.sort((a, b) => {
+      const scoreDiff = getFeaturedScore(b) - getFeaturedScore(a)
+      if (scoreDiff !== 0) {
+        return scoreDiff
+      }
+
+      return a.name.localeCompare(b.name)
+    })
+  } else if (sortBy.value === 'recent') {
+    result.sort((a, b) => {
+      const scoreDiff = parseDate(b.modified_at) - parseDate(a.modified_at)
+      if (scoreDiff !== 0) {
+        return scoreDiff
+      }
+
+      return a.name.localeCompare(b.name)
+    })
+  } else if (sortBy.value === 'region') {
     result.sort((a, b) => 
       (a.region || 'Z').localeCompare(b.region || 'Z')
     )
@@ -229,6 +322,49 @@ watch(
   display: flex;
   gap: 20px;
   flex-direction: column;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(228, 228, 231, 0.72);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.select-input {
+  width: 100%;
+  padding: 14px 16px;
+  background: rgba(64, 224, 208, 0.06);
+  border: 1px solid rgba(64, 224, 208, 0.2);
+  border-radius: 10px;
+  color: #e4e4e7;
+  font-size: 15px;
+}
+
+.quick-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ranking-note {
+  margin: 0;
+  color: rgba(228, 228, 231, 0.58);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .search-box {
@@ -416,7 +552,7 @@ watch(
 
 .team-stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
 
@@ -541,6 +677,10 @@ watch(
   
   .controls {
     gap: 12px;
+  }
+
+  .filter-grid {
+    grid-template-columns: 1fr;
   }
   
   .teams-grid {
