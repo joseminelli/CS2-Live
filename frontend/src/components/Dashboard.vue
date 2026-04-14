@@ -11,8 +11,19 @@
       </div>
     </div>
     
-    <div class="stats-grid">
-      <div class="stat-card live-card">
+    <div v-if="loading" class="stats-grid">
+      <div v-for="n in 4" :key="`stat-skeleton-${n}`" class="stat-card stat-skeleton-card">
+        <div class="stat-header">
+          <div class="skeleton-chip"></div>
+          <div class="skeleton-line skeleton-line-md"></div>
+        </div>
+        <div class="skeleton-line skeleton-value"></div>
+        <div class="skeleton-line skeleton-line-sm"></div>
+      </div>
+    </div>
+
+    <div v-else class="stats-grid">
+      <div class="stat-card live-card" role="button" tabindex="0" @click="goToRoute('live')" @keyup.enter="goToRoute('live')">
         <div class="stat-header">
           <span class="stat-icon live">🔴</span>
           <span class="stat-title">Jogos Ao Vivo</span>
@@ -21,7 +32,7 @@
         <div class="stat-footer">matches em progresso</div>
       </div>
       
-      <div class="stat-card upcoming-card">
+      <div class="stat-card upcoming-card" role="button" tabindex="0" @click="goToRoute('upcoming')" @keyup.enter="goToRoute('upcoming')">
         <div class="stat-header">
           <span class="stat-icon">📅</span>
           <span class="stat-title">Próximos Jogos</span>
@@ -30,7 +41,7 @@
         <div class="stat-footer">eventos agendados</div>
       </div>
       
-      <div class="stat-card finished-card">
+      <div class="stat-card finished-card" role="button" tabindex="0" @click="goToRoute('recent')" @keyup.enter="goToRoute('recent')">
         <div class="stat-header">
           <span class="stat-icon">✓</span>
           <span class="stat-title">Finalizados</span>
@@ -39,7 +50,7 @@
         <div class="stat-footer">resultados disponíveis</div>
       </div>
       
-      <div class="stat-card teams-card">
+      <div class="stat-card teams-card" role="button" tabindex="0" @click="goToRoute('teams')" @keyup.enter="goToRoute('teams')">
         <div class="stat-header">
           <span class="stat-icon">👥</span>
           <span class="stat-title">Times CS2</span>
@@ -54,21 +65,35 @@
       <div class="section-header">
         <h2 class="section-title">🔴 Jogos Ao Vivo</h2>
         <span class="live-pulse">LIVE</span>
+        <button class="section-action" @click="goToRoute('live')">Ver todos</button>
       </div>
       
-      <div v-if="loading" class="loading-state">
-        <div class="spinner"></div>
-        <p>Carregando dados...</p>
+      <div v-if="loading" class="matches-grid">
+        <div v-for="n in 3" :key="`dash-live-skeleton-${n}`" class="live-match-card skeleton-match-card">
+          <div class="skeleton-line skeleton-line-sm"></div>
+          <div class="skeleton-line skeleton-line-lg"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line"></div>
+        </div>
       </div>
       <div v-else-if="liveMatches.length === 0" class="empty-state">
         <p>Nenhum jogo ao vivo no momento</p>
       </div>
       <div v-else class="matches-grid">
-        <div v-for="match in liveMatches.slice(0, 3)" :key="match.id" class="live-match-card">
+        <div
+          v-for="match in liveMatches.slice(0, 3)"
+          :key="match.id"
+          class="live-match-card"
+          role="button"
+          tabindex="0"
+          @click="openLiveMatch(match)"
+          @keyup.enter="openLiveMatch(match)"
+        >
           <div class="match-status">EM PROGRESSO</div>
           <div class="match-content">
             <div class="match-team">
               <img v-if="match.opponents[0]?.opponent?.image_url" :src="match.opponents[0].opponent.image_url" :alt="match.opponents[0].opponent.name" class="team-logo">
+              <div v-else class="team-logo-fallback">?</div>
               <span class="team-name">{{ match.opponents[0]?.opponent?.name || 'TBD' }}</span>
             </div>
             <div class="match-score">
@@ -79,6 +104,7 @@
             <div class="match-team">
               <span class="team-name">{{ match.opponents[1]?.opponent?.name || 'TBD' }}</span>
               <img v-if="match.opponents[1]?.opponent?.image_url" :src="match.opponents[1].opponent.image_url" :alt="match.opponents[1].opponent.name" class="team-logo">
+              <div v-else class="team-logo-fallback">?</div>
             </div>
           </div>
         </div>
@@ -89,13 +115,29 @@
     <div class="section">
       <div class="section-header">
         <h2 class="section-title">📅 Próximos Jogos</h2>
+        <button class="section-action" @click="goToRoute('upcoming')">Ver todos</button>
       </div>
       
-      <div v-if="upcomingMatches.length === 0" class="empty-state">
+      <div v-if="loading" class="upcoming-list">
+        <div v-for="n in 5" :key="`dash-upcoming-skeleton-${n}`" class="upcoming-item skeleton-upcoming-item">
+          <div class="skeleton-line skeleton-line-sm"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line skeleton-line-sm"></div>
+        </div>
+      </div>
+      <div v-else-if="upcomingMatches.length === 0" class="empty-state">
         <p>Nenhum jogo próximo agendado</p>
       </div>
       <div v-else class="upcoming-list">
-        <div v-for="match in upcomingMatches.slice(0, 5)" :key="match.id" class="upcoming-item">
+        <div
+          v-for="match in upcomingMatches.slice(0, 5)"
+          :key="match.id"
+          class="upcoming-item"
+          role="button"
+          tabindex="0"
+          @click="goToRoute('upcoming')"
+          @keyup.enter="goToRoute('upcoming')"
+        >
           <div class="upcoming-time">{{ formatDateTime(match.scheduled_at) }}</div>
           <div class="upcoming-match">
             <span class="team-name-short">{{ match.opponents[0]?.opponent?.name || 'TBD' }}</span>
@@ -111,7 +153,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { matchesAPI, teamsAPI } from '../api.js'
+import { useRouter } from 'vue-router'
+import { dashboardAPI } from '../api.js'
+import { getCompetitionPriority } from '../utils/matchDisplay.js'
+
+const router = useRouter()
 
 const loading = ref(true)
 const liveMatches = ref([])
@@ -123,6 +169,32 @@ const liveCount = ref(0)
 const upcomingCount = ref(0)
 const recentCount = ref(0)
 const teamCount = ref(0)
+
+const goToRoute = (routeName) => {
+  router.push({ name: routeName })
+}
+
+const openLiveMatch = (match) => {
+  const stream = match?.streams_list?.find((item) => item?.official)
+    || match?.streams_list?.find((item) => item?.main)
+    || match?.streams_list?.[0]
+
+  if (stream?.raw_url) {
+    window.open(stream.raw_url, '_blank')
+    return
+  }
+
+  if (stream?.embed_url) {
+    window.open(stream.embed_url, '_blank')
+    return
+  }
+
+  goToRoute('live')
+}
+
+const sortByCompetitionImportance = (items) => {
+  return [...items].sort((a, b) => getCompetitionPriority(b) - getCompetitionPriority(a))
+}
 
 const formatDateTime = (date) => {
   if (!date) return 'TBD'
@@ -137,23 +209,19 @@ const formatDateTime = (date) => {
 onMounted(async () => {
   try {
     loading.value = true
-    
-    const [live, upcoming, recent, teamsList] = await Promise.all([
-      matchesAPI.getLive().catch(() => ({ data: [] })),
-      matchesAPI.getUpcoming().catch(() => ({ data: [] })),
-      matchesAPI.getRecent().catch(() => ({ data: [] })),
-      teamsAPI.getAll().catch(() => ({ data: [] }))
-    ])
-    
-    liveMatches.value = live.data || []
-    upcomingMatches.value = upcoming.data || []
-    recentMatches.value = recent.data || []
-    teams.value = teamsList.data || []
-    
-    liveCount.value = liveMatches.value.length
-    upcomingCount.value = upcomingMatches.value.length
-    recentCount.value = recentMatches.value.length
-    teamCount.value = teams.value.length
+
+    const response = await dashboardAPI.getSummary()
+    const summary = response.data || {}
+
+    liveMatches.value = sortByCompetitionImportance(summary.liveMatches || [])
+    upcomingMatches.value = sortByCompetitionImportance(summary.upcomingMatches || [])
+    recentMatches.value = sortByCompetitionImportance(summary.recentMatches || [])
+    teams.value = summary.teams || []
+
+    liveCount.value = summary.liveCount ?? liveMatches.value.length
+    upcomingCount.value = summary.upcomingCount ?? upcomingMatches.value.length
+    recentCount.value = summary.recentCount ?? recentMatches.value.length
+    teamCount.value = summary.teamCount ?? teams.value.length
   } catch (error) {
     console.error('Error loading dashboard data:', error)
   } finally {
@@ -228,6 +296,7 @@ onMounted(async () => {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .stat-card::before {
@@ -245,6 +314,11 @@ onMounted(async () => {
 .stat-card:hover {
   border-color: rgba(64, 224, 208, 0.4);
   background: linear-gradient(135deg, rgba(64, 224, 208, 0.12) 0%, rgba(30, 144, 255, 0.12) 100%);
+}
+
+.stat-card:focus-visible {
+  outline: 2px solid rgba(64, 224, 208, 0.8);
+  outline-offset: 2px;
 }
 
 .stat-card:hover::before {
@@ -321,6 +395,25 @@ onMounted(async () => {
   position: relative;
 }
 
+.section-action {
+  margin-left: auto;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(64, 224, 208, 0.35);
+  background: rgba(64, 224, 208, 0.12);
+  color: rgba(228, 228, 231, 0.9);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.section-action:hover {
+  border-color: rgba(64, 224, 208, 0.6);
+  background: rgba(64, 224, 208, 0.2);
+}
+
 .section-title {
   font-size: 32px;
   font-weight: 700;
@@ -354,6 +447,7 @@ onMounted(async () => {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .live-match-card::before {
@@ -418,6 +512,20 @@ onMounted(async () => {
   border: 1px solid rgba(64, 224, 208, 0.15);
 }
 
+.team-logo-fallback {
+  width: 90px;
+  height: 90px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 42px;
+  font-weight: 900;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
 .team-name {
   font-size: 18px;
   font-weight: 700;
@@ -446,26 +554,56 @@ onMounted(async () => {
   color: rgba(228, 228, 231, 0.3);
 }
 
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 100px 20px;
-  gap: 24px;
+.stat-skeleton-card,
+.skeleton-match-card,
+.skeleton-upcoming-item {
+  cursor: default;
 }
 
-.spinner {
-  width: 60px;
-  height: 60px;
-  border: 4px solid rgba(64, 224, 208, 0.2);
-  border-top-color: #40e0d0;
+.skeleton-chip {
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  background: linear-gradient(90deg, rgba(64, 224, 208, 0.18), rgba(64, 224, 208, 0.4), rgba(64, 224, 208, 0.18));
+  background-size: 220% 100%;
+  animation: dashSkeleton 1.2s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.skeleton-line {
+  height: 12px;
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(64, 224, 208, 0.14), rgba(64, 224, 208, 0.34), rgba(64, 224, 208, 0.14));
+  background-size: 220% 100%;
+  animation: dashSkeleton 1.2s linear infinite;
+}
+
+.skeleton-line-lg {
+  width: 78%;
+  height: 20px;
+}
+
+.skeleton-line-md {
+  width: 55%;
+}
+
+.skeleton-line-sm {
+  width: 40%;
+}
+
+.skeleton-value {
+  height: 56px;
+  width: 45%;
+  margin: 8px 0 14px;
+}
+
+@keyframes dashSkeleton {
+  from {
+    background-position: 220% 0;
+  }
+  to {
+    background-position: -220% 0;
+  }
 }
 
 .empty-state {
@@ -491,6 +629,7 @@ onMounted(async () => {
   border: 1px solid rgba(64, 224, 208, 0.15);
   border-radius: 10px;
   transition: all 0.3s ease;
+  cursor: pointer;
 }
 
 .upcoming-item:hover {

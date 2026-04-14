@@ -224,17 +224,6 @@ onUnmounted(() => {
   transition: width 260ms ease;
 }
 
-.nav-item.active::after {
-  content: '';
-  position: absolute;
-  right: -10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
-  border: 1px solid rgba(64, 224, 208, 0.6);
-  box-shadow: 0 0 8px rgba(64, 224, 208, 0.45);
-}
 
 .nav-item:hover .nav-label,
 .nav-item.active .nav-label {

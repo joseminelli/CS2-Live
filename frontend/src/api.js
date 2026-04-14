@@ -54,15 +54,19 @@ api.interceptors.response.use(
 )
 
 export const matchesAPI = {
-  getUpcoming: () => api.get('/matches/upcoming'),
-  getRecent: () => api.get('/matches/recent'),
-  getLive: () => api.get('/matches/live'),
+  getUpcoming: (params = { all: true }) => api.get('/matches/upcoming', { params }),
+  getRecent: (params = { all: true }) => api.get('/matches/recent', { params }),
+  getLive: (params = { all: true }) => api.get('/matches/live', { params }),
   getById: (id) => api.get(`/matches/${id}`)
 }
 
 export const teamsAPI = {
-  getAll: () => api.get('/teams'),
+  getAll: (params = { all: true }) => api.get('/teams', { params }),
   getById: (id) => api.get(`/teams/${id}`)
+}
+
+export const dashboardAPI = {
+  getSummary: () => api.get('/dashboard')
 }
 
 export const playersAPI = {

@@ -54,7 +54,7 @@
             class="team-logo"
           >
           <div v-else class="team-logo-placeholder">
-            {{ team.name.substring(0, 2).toUpperCase() }}
+            ?
           </div>
         </div>
         
@@ -75,7 +75,7 @@
           <div v-if="team.players && team.players.length > 0" class="players-preview">
             <div class="players-label">Jogadores</div>
             <div class="players-list">
-              <span v-for="player in team.players.slice(0, 3)" :key="player.id" class="player-tag">
+              <span v-for="player in team.players" :key="player.id" class="player-tag">
                 {{ player.name || 'Unknown' }}
               </span>
             </div>
@@ -87,23 +87,68 @@
         </div>
       </div>
     </div>
+
+    <div class="pagination" v-if="!loading && teams.length > 0">
+      <button class="pagination-btn" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">Anterior</button>
+      <span class="pagination-info">Pagina {{ currentPage }}</span>
+      <button class="pagination-btn" :disabled="!hasNextPage" @click="goToPage(currentPage + 1)">Proxima</button>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { teamsAPI } from '../api.js'
+
+const route = useRoute()
+const router = useRouter()
 
 const teams = ref([])
 const loading = ref(true)
 const searchQuery = ref('')
 const sortBy = ref('name')
+const currentPage = ref(1)
+const hasNextPage = ref(false)
+const pageSize = 24
 
 const sortOptions = [
   { key: 'name', label: '📌 Nome' },
   { key: 'region', label: '🌍 Região' },
   { key: 'players', label: '👥 Jogadores' }
 ]
+
+const parsePage = (value) => {
+  const parsed = Number.parseInt(value, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+}
+
+const ensurePageQuery = () => {
+  if (!route.query.page) {
+    router.replace({ query: { ...route.query, page: '1' } })
+  }
+}
+
+const syncPageFromUrl = () => {
+  currentPage.value = parsePage(route.query.page)
+}
+
+const goToPage = (page) => {
+  router.push({ query: { ...route.query, page: String(page) } })
+}
+
+const fetchTeams = async () => {
+  loading.value = true
+  const response = await teamsAPI.getAll({
+    all: false,
+    per_page: pageSize,
+    page: currentPage.value,
+    sort: 'name'
+  })
+  teams.value = response.data || []
+  hasNextPage.value = teams.value.length === pageSize
+  loading.value = false
+}
 
 const filteredTeams = computed(() => {
   let result = teams.value
@@ -135,15 +180,23 @@ const filteredTeams = computed(() => {
 
 onMounted(async () => {
   try {
-    loading.value = true
-    const response = await teamsAPI.getAll()
-    teams.value = response.data || []
+    ensurePageQuery()
+    syncPageFromUrl()
+    await fetchTeams()
   } catch (error) {
     console.error('Error fetching teams:', error)
   } finally {
     loading.value = false
   }
 })
+
+watch(
+  () => route.query.page,
+  async () => {
+    syncPageFromUrl()
+    await fetchTeams()
+  }
+)
 </script>
 
 <style scoped>
@@ -333,15 +386,15 @@ onMounted(async () => {
 .team-logo-placeholder {
   width: 100px;
   height: 100px;
-  background: rgba(64, 224, 208, 0.15);
-  border: 2px solid rgba(64, 224, 208, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
-  font-weight: 700;
-  color: #40e0d0;
+  font-size: 56px;
+  font-weight: 900;
+  color: #ffffff;
 }
 
 .card-content {
@@ -419,9 +472,8 @@ onMounted(async () => {
   color: rgba(228, 228, 231, 0.8);
   border-radius: 4px;
   border-left: 2px solid #40e0d0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .card-footer {
@@ -450,6 +502,36 @@ onMounted(async () => {
   background: rgba(64, 224, 208, 0.3);
   border-color: rgba(64, 224, 208, 0.6);
   box-shadow: 0 0 15px rgba(64, 224, 208, 0.3);
+}
+
+.pagination {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.pagination-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(64, 224, 208, 0.4);
+  background: rgba(64, 224, 208, 0.16);
+  color: #dffaf4;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(228, 228, 231, 0.8);
 }
 
 @media (max-width: 768px) {

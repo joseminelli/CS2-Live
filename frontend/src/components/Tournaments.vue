@@ -278,6 +278,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { tournamentsAPI } from '../api.js'
+import { getChampionshipPriority } from '../utils/matchDisplay.js'
 
 const tournaments = ref([])
 const loading = ref(true)
@@ -779,7 +780,7 @@ const filteredChampionships = computed(() => {
     result = result.filter((champ) => champ.status === selectedStatus.value)
   }
 
-  return result.sort((a, b) => new Date(b.latestDate || 0) - new Date(a.latestDate || 0))
+  return result.sort((a, b) => getChampionshipPriority(b) - getChampionshipPriority(a) || new Date(b.latestDate || 0) - new Date(a.latestDate || 0))
 })
 
 const toggleExpand = (id) => {

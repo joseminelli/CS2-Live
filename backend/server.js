@@ -8,6 +8,126 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const parsePositiveInt = (value, fallback) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const PANDASCORE_PAGE_SIZE = 100;
+const PANDASCORE_MAX_PAGES = parsePositiveInt(process.env.PANDASCORE_MAX_PAGES, 200);
+const CACHE_TTL_FAST_MS = parsePositiveInt(process.env.CACHE_TTL_FAST_MS, 15000);
+const CACHE_TTL_DEFAULT_MS = parsePositiveInt(process.env.CACHE_TTL_DEFAULT_MS, 120000);
+const CACHE_TTL_SLOW_MS = parsePositiveInt(process.env.CACHE_TTL_SLOW_MS, 600000);
+
+const responseCache = new Map();
+const inFlightRequests = new Map();
+
+const parseBoolean = (value, fallback = false) => {
+  if (value == null) return fallback;
+  const normalized = String(value).trim().toLowerCase();
+  if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+};
+
+const sortObjectKeys = (value) => {
+  if (Array.isArray(value)) return value.map(sortObjectKeys);
+  if (value && typeof value === 'object') {
+    return Object.keys(value)
+      .sort()
+      .reduce((acc, key) => {
+        acc[key] = sortObjectKeys(value[key]);
+        return acc;
+      }, {});
+  }
+  return value;
+};
+
+const buildCacheKey = (prefix, endpoint, params = {}) => {
+  return `${prefix}:${endpoint}:${JSON.stringify(sortObjectKeys(params))}`;
+};
+
+const getOrSetCache = async (key, ttlMs, resolver) => {
+  const now = Date.now();
+  const cached = responseCache.get(key);
+
+  if (cached && cached.expiresAt > now) {
+    return cached.data;
+  }
+
+  if (inFlightRequests.has(key)) {
+    return inFlightRequests.get(key);
+  }
+
+  const task = Promise.resolve()
+    .then(resolver)
+    .then((data) => {
+      responseCache.set(key, { data, expiresAt: Date.now() + ttlMs });
+      return data;
+    })
+    .finally(() => {
+      inFlightRequests.delete(key);
+    });
+
+  inFlightRequests.set(key, task);
+  return task;
+};
+
+const cachedPandaGet = async (endpoint, params = {}, ttlMs = CACHE_TTL_DEFAULT_MS) => {
+  const key = buildCacheKey('single', endpoint, params);
+  return getOrSetCache(key, ttlMs, async () => {
+    const response = await pandascore.get(endpoint, { params });
+    return response.data;
+  });
+};
+
+const cachedPandaResponse = async (endpoint, params = {}, ttlMs = CACHE_TTL_DEFAULT_MS) => {
+  const key = buildCacheKey('response', endpoint, params);
+  return getOrSetCache(key, ttlMs, async () => {
+    const response = await pandascore.get(endpoint, { params });
+    return {
+      data: response.data,
+      headers: response.headers || {}
+    };
+  });
+};
+
+const parseHeaderTotal = (headers, fallback = 0) => {
+  const total = headers?.['x-total'];
+  const parsed = Number.parseInt(total, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const fetchAllPaginated = async (endpoint, params = {}) => {
+  const key = buildCacheKey('all', endpoint, params);
+  const ttlMs = endpoint.includes('/running') ? CACHE_TTL_FAST_MS : CACHE_TTL_DEFAULT_MS;
+
+  return getOrSetCache(key, ttlMs, async () => {
+    const allItems = [];
+    let page = parsePositiveInt(params.page, 1);
+
+    for (let i = 0; i < PANDASCORE_MAX_PAGES; i += 1) {
+      const batch = await cachedPandaGet(
+        endpoint,
+        {
+          ...params,
+          per_page: PANDASCORE_PAGE_SIZE,
+          page
+        },
+        ttlMs
+      );
+
+      const normalizedBatch = Array.isArray(batch) ? batch : [];
+      allItems.push(...normalizedBatch);
+
+      if (normalizedBatch.length < PANDASCORE_PAGE_SIZE) break;
+      page += 1;
+    }
+
+    return allItems;
+  });
+};
+
 // Configuração CORS melhorada
 const corsOptions = {
   origin: function (origin, callback) {
@@ -79,31 +199,73 @@ const pandascore = axios.create({
 // Get upcoming matches
 app.get('/api/matches/upcoming', async (req, res) => {
   try {
-    const response = await pandascore.get('/csgo/matches/upcoming', {
-      params: {
-        per_page: 50,
-        page: 1,
-        sort: 'scheduled_at'
-      }
-    });
-    res.json(response.data);
+    const perPage = parsePositiveInt(req.query.per_page, PANDASCORE_PAGE_SIZE);
+    const page = parsePositiveInt(req.query.page, 1);
+    const fetchAll = parseBoolean(req.query.all, true);
+    const sort = req.query.sort || 'scheduled_at';
+
+    if (fetchAll) {
+      const allMatches = await fetchAllPaginated('/csgo/matches/upcoming', { sort, page });
+      return res.json(allMatches);
+    }
+
+    const data = await cachedPandaGet('/csgo/matches/upcoming', {
+      per_page: perPage,
+      page,
+      sort
+    }, CACHE_TTL_DEFAULT_MS);
+    res.json(data);
   } catch (error) {
     console.error('Error fetching upcoming matches:', error.message);
     res.status(500).json({ error: 'Failed to fetch upcoming matches' });
   }
 });
 
+// Dashboard summary
+app.get('/api/dashboard', async (req, res) => {
+  try {
+    const [live, upcoming, recent, teamsList] = await Promise.all([
+      cachedPandaResponse('/csgo/matches/running', { per_page: 3, page: 1 }, CACHE_TTL_FAST_MS),
+      cachedPandaResponse('/csgo/matches/upcoming', { per_page: 5, page: 1, sort: 'scheduled_at' }, CACHE_TTL_DEFAULT_MS),
+      cachedPandaResponse('/csgo/matches/past', { per_page: 5, page: 1, sort: '-scheduled_at' }, CACHE_TTL_DEFAULT_MS),
+      cachedPandaResponse('/csgo/teams', { per_page: 8, page: 1, sort: 'name' }, CACHE_TTL_SLOW_MS)
+    ]);
+
+    res.json({
+      liveMatches: Array.isArray(live.data) ? live.data : [],
+      liveCount: parseHeaderTotal(live.headers, Array.isArray(live.data) ? live.data.length : 0),
+      upcomingMatches: Array.isArray(upcoming.data) ? upcoming.data : [],
+      upcomingCount: parseHeaderTotal(upcoming.headers, Array.isArray(upcoming.data) ? upcoming.data.length : 0),
+      recentMatches: Array.isArray(recent.data) ? recent.data : [],
+      recentCount: parseHeaderTotal(recent.headers, Array.isArray(recent.data) ? recent.data.length : 0),
+      teams: Array.isArray(teamsList.data) ? teamsList.data : [],
+      teamCount: parseHeaderTotal(teamsList.headers, Array.isArray(teamsList.data) ? teamsList.data.length : 0)
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard summary:', error.message);
+    res.status(500).json({ error: 'Failed to fetch dashboard summary' });
+  }
+});
+
 // Get recent matches
 app.get('/api/matches/recent', async (req, res) => {
   try {
-    const response = await pandascore.get('/csgo/matches/past', {
-      params: {
-        per_page: 50,
-        page: 1,
-        sort: '-scheduled_at'
-      }
-    });
-    res.json(response.data);
+    const perPage = parsePositiveInt(req.query.per_page, PANDASCORE_PAGE_SIZE);
+    const page = parsePositiveInt(req.query.page, 1);
+    const fetchAll = parseBoolean(req.query.all, true);
+    const sort = req.query.sort || '-scheduled_at';
+
+    if (fetchAll) {
+      const allMatches = await fetchAllPaginated('/csgo/matches/past', { sort, page });
+      return res.json(allMatches);
+    }
+
+    const data = await cachedPandaGet('/csgo/matches/past', {
+      per_page: perPage,
+      page,
+      sort
+    }, CACHE_TTL_DEFAULT_MS);
+    res.json(data);
   } catch (error) {
     console.error('Error fetching recent matches:', error.message);
     res.status(500).json({ error: 'Failed to fetch recent matches' });
@@ -113,12 +275,20 @@ app.get('/api/matches/recent', async (req, res) => {
 // Get live matches
 app.get('/api/matches/live', async (req, res) => {
   try {
-    const response = await pandascore.get('/csgo/matches/running', {
-      params: {
-        per_page: 50
-      }
-    });
-    res.json(response.data);
+    const perPage = parsePositiveInt(req.query.per_page, PANDASCORE_PAGE_SIZE);
+    const page = parsePositiveInt(req.query.page, 1);
+    const fetchAll = parseBoolean(req.query.all, true);
+
+    if (fetchAll) {
+      const allMatches = await fetchAllPaginated('/csgo/matches/running', { page });
+      return res.json(allMatches);
+    }
+
+    const data = await cachedPandaGet('/csgo/matches/running', {
+      per_page: perPage,
+      page
+    }, CACHE_TTL_FAST_MS);
+    res.json(data);
   } catch (error) {
     console.error('Error fetching live matches:', error.message);
     res.status(500).json({ error: 'Failed to fetch live matches' });
@@ -128,8 +298,8 @@ app.get('/api/matches/live', async (req, res) => {
 // Get match details
 app.get('/api/matches/:id', async (req, res) => {
   try {
-    const response = await pandascore.get(`/csgo/matches/${req.params.id}`);
-    res.json(response.data);
+    const data = await cachedPandaGet(`/csgo/matches/${req.params.id}`, {}, CACHE_TTL_FAST_MS);
+    res.json(data);
   } catch (error) {
     console.error('Error fetching match details:', error.message);
     res.status(500).json({ error: 'Failed to fetch match details' });
@@ -139,14 +309,22 @@ app.get('/api/matches/:id', async (req, res) => {
 // Get teams
 app.get('/api/teams', async (req, res) => {
   try {
-    const response = await pandascore.get('/csgo/teams', {
-      params: {
-        per_page: 100,
-        page: 1,
-        sort: 'name'
-      }
-    });
-    res.json(response.data);
+    const perPage = parsePositiveInt(req.query.per_page, PANDASCORE_PAGE_SIZE);
+    const page = parsePositiveInt(req.query.page, 1);
+    const fetchAll = parseBoolean(req.query.all, true);
+    const sort = req.query.sort || 'name';
+
+    if (fetchAll) {
+      const allTeams = await fetchAllPaginated('/csgo/teams', { sort, page });
+      return res.json(allTeams);
+    }
+
+    const data = await cachedPandaGet('/csgo/teams', {
+      per_page: perPage,
+      page,
+      sort
+    }, CACHE_TTL_SLOW_MS);
+    res.json(data);
   } catch (error) {
     console.error('Error fetching teams:', error.message);
     res.status(500).json({ error: 'Failed to fetch teams' });
@@ -156,8 +334,8 @@ app.get('/api/teams', async (req, res) => {
 // Get team details and statistics
 app.get('/api/teams/:id', async (req, res) => {
   try {
-    const response = await pandascore.get(`/csgo/teams/${req.params.id}`);
-    res.json(response.data);
+    const data = await cachedPandaGet(`/csgo/teams/${req.params.id}`, {}, CACHE_TTL_SLOW_MS);
+    res.json(data);
   } catch (error) {
     console.error('Error fetching team details:', error.message);
     res.status(500).json({ error: 'Failed to fetch team details' });
@@ -167,8 +345,8 @@ app.get('/api/teams/:id', async (req, res) => {
 // Get player statistics
 app.get('/api/players/:id', async (req, res) => {
   try {
-    const response = await pandascore.get(`/players/${req.params.id}`);
-    res.json(response.data);
+    const data = await cachedPandaGet(`/players/${req.params.id}`, {}, CACHE_TTL_SLOW_MS);
+    res.json(data);
   } catch (error) {
     console.error('Error fetching player:', error.message);
     res.status(500).json({ error: 'Failed to fetch player' });
@@ -178,13 +356,11 @@ app.get('/api/players/:id', async (req, res) => {
 // Get league information
 app.get('/api/leagues', async (req, res) => {
   try {
-    const response = await pandascore.get('/csgo/leagues', {
-      params: {
-        per_page: 50,
-        sort: 'name'
-      }
-    });
-    res.json(response.data);
+    const data = await cachedPandaGet('/csgo/leagues', {
+      per_page: 50,
+      sort: 'name'
+    }, CACHE_TTL_SLOW_MS);
+    res.json(data);
   } catch (error) {
     console.error('Error fetching leagues:', error.message);
     res.status(500).json({ error: 'Failed to fetch leagues' });
@@ -194,13 +370,11 @@ app.get('/api/leagues', async (req, res) => {
 // Get series
 app.get('/api/series', async (req, res) => {
   try {
-    const response = await pandascore.get('/csgo/series', {
-      params: {
-        per_page: 50,
-        sort: '-begin_at'
-      }
-    });
-    res.json(response.data);
+    const data = await cachedPandaGet('/csgo/series', {
+      per_page: 50,
+      sort: '-begin_at'
+    }, CACHE_TTL_SLOW_MS);
+    res.json(data);
   } catch (error) {
     console.error('Error fetching series:', error.message);
     res.status(500).json({ error: 'Failed to fetch series' });
@@ -218,8 +392,8 @@ app.get('/api/tournaments', async (req, res) => {
     
     if (req.query.filter) params.filter = req.query.filter;
     
-    const response = await pandascore.get('/csgo/tournaments', { params });
-    res.json(response.data);
+    const data = await cachedPandaGet('/csgo/tournaments', params, CACHE_TTL_DEFAULT_MS);
+    res.json(data);
   } catch (error) {
     console.error('Error fetching tournaments:', error.message);
     res.status(500).json({ error: 'Failed to fetch tournaments' });
@@ -229,8 +403,8 @@ app.get('/api/tournaments', async (req, res) => {
 // Get tournament details
 app.get('/api/tournaments/:id', async (req, res) => {
   try {
-    const response = await pandascore.get(`/csgo/tournaments/${req.params.id}`);
-    res.json(response.data);
+    const data = await cachedPandaGet(`/csgo/tournaments/${req.params.id}`, {}, CACHE_TTL_DEFAULT_MS);
+    res.json(data);
   } catch (error) {
     console.error('Error fetching tournament details:', error.message);
     res.status(500).json({ error: 'Failed to fetch tournament details' });
@@ -245,8 +419,8 @@ app.get('/api/tournaments/:id/brackets', async (req, res) => {
       page: req.query.page || 1
     };
 
-    const response = await pandascore.get(`/tournaments/${req.params.id}/brackets`, { params });
-    res.json(response.data);
+    const data = await cachedPandaGet(`/tournaments/${req.params.id}/brackets`, params, CACHE_TTL_DEFAULT_MS);
+    res.json(data);
   } catch (error) {
     console.error('Error fetching tournament brackets:', error.message);
     res.status(500).json({ error: 'Failed to fetch tournament brackets' });
@@ -264,8 +438,8 @@ app.get('/api/tournaments/:id/matches', async (req, res) => {
     if (req.query.filter) params.filter = req.query.filter;
     if (req.query.sort) params.sort = req.query.sort;
     
-    const response = await pandascore.get(`/csgo/tournaments/${req.params.id}/matches`, { params });
-    res.json(response.data);
+    const data = await cachedPandaGet(`/csgo/tournaments/${req.params.id}/matches`, params, CACHE_TTL_FAST_MS);
+    res.json(data);
   } catch (error) {
     console.error('Error fetching tournament matches:', error.message);
     res.status(500).json({ error: 'Failed to fetch tournament matches' });

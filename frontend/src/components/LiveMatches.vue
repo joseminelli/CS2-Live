@@ -2,7 +2,7 @@
   <div class="live-view">
     <div class="page-header">
       <h1 class="page-title">Jogos Ao Vivo</h1>
-      <p class="page-subtitle">Acompanhamento em tempo real • Atualiza a cada 10 segundos</p>
+      <p class="page-subtitle">Acompanhamento em tempo real • Atualiza a cada 30 segundos</p>
     </div>
     
     <div v-if="loading" class="loading-state">
@@ -34,6 +34,7 @@
               :alt="match.opponents[0].opponent.name"
               class="team-logo"
             >
+            <div v-else class="team-logo-fallback">?</div>
             <h3 class="team-title">{{ getTeamName(match.opponents[0]) }}</h3>
           </div>
           
@@ -55,6 +56,7 @@
               :alt="match.opponents[1].opponent.name"
               class="team-logo"
             >
+            <div v-else class="team-logo-fallback">?</div>
           </div>
         </div>
         
@@ -79,16 +81,30 @@
         </div>
       </div>
     </div>
+
+    <div class="pagination" v-if="!loading && matches.length > 0">
+      <button class="pagination-btn" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">Anterior</button>
+      <span class="pagination-info">Pagina {{ currentPage }}</span>
+      <button class="pagination-btn" :disabled="!hasNextPage" @click="goToPage(currentPage + 1)">Proxima</button>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { matchesAPI } from '../api.js'
 import { getCompetitionName, getPhaseName, getTeamName } from '../utils/matchDisplay.js'
+import { getCompetitionPriority } from '../utils/matchDisplay.js'
+
+const route = useRoute()
+const router = useRouter()
 
 const matches = ref([])
 const loading = ref(true)
+const currentPage = ref(1)
+const hasNextPage = ref(false)
+const pageSize = 12
 
 const getRoundNumber = (match) => {
   if (match.games_attributes && match.games_attributes.length > 0) {
@@ -151,20 +167,50 @@ const openStream = (stream) => {
 
 let pollInterval
 
+const parsePage = (value) => {
+  const parsed = Number.parseInt(value, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+}
+
+const ensurePageQuery = () => {
+  if (!route.query.page) {
+    router.replace({ query: { ...route.query, page: '1' } })
+  }
+}
+
+const syncPageFromUrl = () => {
+  currentPage.value = parsePage(route.query.page)
+}
+
+const fetchMatches = async (showLoader = true) => {
+  if (showLoader) loading.value = true
+  const response = await matchesAPI.getLive({
+    all: false,
+    per_page: pageSize,
+    page: currentPage.value
+  })
+  matches.value = [...(response.data || [])].sort((a, b) => getCompetitionPriority(b) - getCompetitionPriority(a))
+  hasNextPage.value = matches.value.length === pageSize
+  if (showLoader) loading.value = false
+}
+
+const goToPage = (page) => {
+  router.push({ query: { ...route.query, page: String(page) } })
+}
+
 onMounted(async () => {
   try {
-    loading.value = true
-    const response = await matchesAPI.getLive()
-    matches.value = response.data || []
+    ensurePageQuery()
+    syncPageFromUrl()
+    await fetchMatches()
     
     pollInterval = setInterval(async () => {
       try {
-        const response = await matchesAPI.getLive()
-        matches.value = response.data || []
+        await fetchMatches(false)
       } catch (error) {
         console.error('Error updating live matches:', error)
       }
-    }, 10000)
+    }, 30000)
   } catch (error) {
     console.error('Error fetching live matches:', error)
   } finally {
@@ -175,6 +221,14 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   if (pollInterval) clearInterval(pollInterval)
 })
+
+watch(
+  () => route.query.page,
+  async () => {
+    syncPageFromUrl()
+    await fetchMatches()
+  }
+)
 </script>
 
 <style scoped>
@@ -223,6 +277,36 @@ onBeforeUnmount(() => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.pagination-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  background: rgba(255, 107, 107, 0.16);
+  color: #ffe3e3;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(228, 228, 231, 0.8);
 }
 
 .empty-state {
@@ -358,6 +442,20 @@ onBeforeUnmount(() => {
   padding: 8px;
   border: 2px solid rgba(255, 107, 107, 0.2);
   transition: all 0.3s ease;
+}
+
+.team-logo-fallback {
+  width: 100px;
+  height: 100px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  font-weight: 900;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .live-card:hover .team-logo {
