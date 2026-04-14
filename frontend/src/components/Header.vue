@@ -105,7 +105,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 80px;
+  height: 100px;
   gap: 30px;
 }
 
@@ -125,13 +125,13 @@ onMounted(async () => {
 }
 
 .logo-icon {
-  font-size: 28px;
+  font-size: 36px;
   display: flex;
   align-items: center;
 }
 
 .logo-text {
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: 0.05em;
   background: linear-gradient(135deg, #40e0d0 0%, #1e90ff 100%);
@@ -142,10 +142,10 @@ onMounted(async () => {
 }
 
 .status-badge {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 12px;
+  padding: 8px 14px;
+  border-radius: 14px;
   background: rgba(255, 0, 0, 0.1);
   color: #ff6b6b;
   border: 1px solid rgba(255, 107, 107, 0.3);
@@ -171,16 +171,16 @@ onMounted(async () => {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
+  gap: 8px;
+  padding: 12px 20px;
   background: rgba(64, 224, 208, 0.08);
   border: 1px solid rgba(64, 224, 208, 0.2);
   color: rgba(228, 228, 231, 0.8);
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s ease;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   white-space: nowrap;
   position: relative;
   overflow: hidden;
@@ -216,7 +216,7 @@ onMounted(async () => {
 }
 
 .nav-icon {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .nav-label {
@@ -242,7 +242,7 @@ onMounted(async () => {
 }
 
 .info-small {
-  font-size: 11px;
+  font-size: 13px;
   color: rgba(64, 224, 208, 0.8);
   margin: 0;
 }

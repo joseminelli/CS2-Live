@@ -191,14 +191,14 @@ onBeforeUnmount(() => {
 }
 
 .page-title {
-  font-size: 42px;
+  font-size: 56px;
   font-weight: 800;
   margin: 0;
   color: #e4e4e7;
 }
 
 .page-subtitle {
-  font-size: 14px;
+  font-size: 18px;
   color: rgba(228, 228, 231, 0.6);
   margin: 0;
 }
@@ -253,8 +253,8 @@ onBeforeUnmount(() => {
 
 .live-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+  gap: 28px;
 }
 
 .live-card {
@@ -292,7 +292,7 @@ onBeforeUnmount(() => {
 }
 
 .card-header {
-  padding: 16px 20px;
+  padding: 20px 24px;
   background: rgba(0, 0, 0, 0.3);
   border-bottom: 1px solid rgba(255, 107, 107, 0.2);
   display: flex;
@@ -303,12 +303,12 @@ onBeforeUnmount(() => {
 }
 
 .live-badge {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
-  padding: 6px 12px;
+  padding: 8px 14px;
   background: #ff6b6b;
   color: white;
-  border-radius: 4px;
+  border-radius: 6px;
   letter-spacing: 0.05em;
   animation: pulse 1.5s infinite;
 }
@@ -319,14 +319,14 @@ onBeforeUnmount(() => {
 }
 
 .league-name {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba(255, 107, 107, 0.8);
   text-transform: uppercase;
 }
 
 .card-body {
-  padding: 30px 20px;
+  padding: 40px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -350,12 +350,12 @@ onBeforeUnmount(() => {
 }
 
 .team-logo {
-  width: 80px;
-  height: 80px;
-  border-radius: 12px;
+  width: 100px;
+  height: 100px;
+  border-radius: 14px;
   object-fit: contain;
   background: rgba(0, 0, 0, 0.3);
-  padding: 6px;
+  padding: 8px;
   border: 2px solid rgba(255, 107, 107, 0.2);
   transition: all 0.3s ease;
 }
@@ -365,7 +365,7 @@ onBeforeUnmount(() => {
 }
 
 .team-title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   color: #e4e4e7;
   text-align: center;
@@ -424,18 +424,20 @@ onBeforeUnmount(() => {
 }
 
 .card-footer {
-  padding: 16px 20px;
+  padding: 20px 24px;
   background: rgba(0, 0, 0, 0.2);
   border-top: 1px solid rgba(255, 107, 107, 0.2);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
   position: relative;
   z-index: 1;
 }
 
 .match-info {
-  font-size: 12px;
+  font-size: 14px;
   color: rgba(255, 107, 107, 0.7);
   font-weight: 600;
 }
@@ -444,10 +446,10 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, #ff6b6b, #ff8787);
   border: none;
   color: white;
-  padding: 8px 16px;
-  border-radius: 6px;
+  padding: 10px 20px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   transition: all 0.3s ease;
   text-transform: uppercase;
@@ -469,10 +471,10 @@ onBeforeUnmount(() => {
   background: rgba(255, 107, 107, 0.2);
   border: 1px solid rgba(255, 107, 107, 0.4);
   color: #ff6b6b;
-  padding: 6px 12px;
-  border-radius: 4px;
+  padding: 8px 14px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   transition: all 0.2s ease;
   text-transform: uppercase;
@@ -488,7 +490,7 @@ onBeforeUnmount(() => {
 
 .no-streams {
   color: rgba(228, 228, 231, 0.4);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 @media (max-width: 1200px) {

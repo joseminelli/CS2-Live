@@ -255,7 +255,7 @@ onMounted(async () => {
 }
 
 .page-subtitle {
-  font-size: 14px;
+  font-size: 18px;
   color: rgba(228, 228, 231, 0.6);
   margin: 0;
 }
@@ -274,12 +274,12 @@ onMounted(async () => {
 
 .search-input {
   width: 100%;
-  padding: 12px 14px 12px 40px;
+  padding: 14px 16px 14px 44px;
   background: rgba(64, 224, 208, 0.05);
   border: 1px solid rgba(64, 224, 208, 0.2);
-  border-radius: 8px;
+  border-radius: 10px;
   color: #e4e4e7;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.3s ease;
 }
 
@@ -380,7 +380,8 @@ onMounted(async () => {
 
 .matches-container {
   display: grid;
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+  gap: 18px;
 }
 
 .match-card {

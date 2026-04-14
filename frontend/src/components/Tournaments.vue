@@ -205,7 +205,7 @@
               </article>
             </div>
 
-            <div v-else class="bracket-sections">
+            <div v-else class="bracket-container">
               <section v-for="section in bracketSections" :key="section.key" class="bracket-section">
                 <header class="bracket-section-header">
                   <div>
@@ -215,45 +215,56 @@
                   </div>
                 </header>
 
-                <div class="bracket-columns">
-                  <article v-for="(round, roundIndex) in section.rounds" :key="round.key" class="bracket-column">
-                    <div class="bracket-column-head">
-                      <span class="round-index">Fase {{ String(roundIndex + 1).padStart(2, '0') }}</span>
-                      <div>
-                        <div class="bracket-round-title">{{ round.label }}</div>
-                        <div class="round-count">{{ round.matches.length }} partida(s)</div>
+                <div class="bracket-visual">
+                  <div class="bracket-rounds">
+                    <div v-for="(round, roundIndex) in section.rounds" :key="round.key" class="bracket-round">
+                      <div class="round-header">
+                        <span class="round-label">{{ round.label }}</span>
+                        <span class="round-meta">{{ round.matches.length }} partida(s)</span>
                       </div>
-                    </div>
-                    <div class="bracket-matches">
-                      <div
-                        v-for="(match, matchIndex) in round.matches"
-                        :key="match.key"
-                        class="bracket-match"
-                        :class="`bracket-match-${matchIndex + 1}`"
-                      >
-                        <div class="bracket-match-top">
-                          <span class="match-tag">{{ match.stageLabel }}</span>
-                          <span class="match-time">{{ match.timeLabel }}</span>
-                        </div>
+                      
+                      <div class="matches-column">
+                        <div 
+                          v-for="(match, matchIndex) in round.matches" 
+                          :key="match.key"
+                          class="bracket-matchup"
+                        >
+                          <div class="matchup-container">
+                            <!-- Team A -->
+                            <div class="matchup-team" :class="{ 'is-winner': match.winner === 0 }">
+                              <div class="team-slot">
+                                <div class="team-badge" :style="{ backgroundColor: getTeamColor(match.teamA) }"></div>
+                                <div class="team-info">
+                                  <span class="team-name">{{ match.teamA }}</span>
+                                  <span class="team-score">{{ match.scoreA || '-' }}</span>
+                                </div>
+                              </div>
+                              <div v-if="match.timeLabel" class="match-schedule">
+                                <span class="time-badge">{{ match.timeLabel }}</span>
+                              </div>
+                            </div>
 
-                        <div class="bracket-teams">
-                          <div class="bracket-team" :class="{ winner: match.winner === 0 }">
-                            <span class="team-name-inline">{{ match.teamA }}</span>
-                            <span class="team-score">{{ match.scoreA }}</span>
+                            <!-- Divider -->
+                            <div class="matchup-divider"></div>
+
+                            <!-- Team B -->
+                            <div class="matchup-team" :class="{ 'is-winner': match.winner === 1 }">
+                              <div class="team-slot">
+                                <div class="team-badge" :style="{ backgroundColor: getTeamColor(match.teamB) }"></div>
+                                <div class="team-info">
+                                  <span class="team-name">{{ match.teamB }}</span>
+                                  <span class="team-score">{{ match.scoreB || '-' }}</span>
+                                </div>
+                              </div>
+                              <div v-if="match.timeLabel" class="match-schedule">
+                                <span class="time-badge">{{ match.timeLabel }}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div class="bracket-vs">VS</div>
-                          <div class="bracket-team" :class="{ winner: match.winner === 1 }">
-                            <span class="team-name-inline">{{ match.teamB }}</span>
-                            <span class="team-score">{{ match.scoreB }}</span>
-                          </div>
-                        </div>
-                        <div class="bracket-meta">
-                          <span>{{ match.numberLabel }}</span>
-                          <span>{{ match.statusLabel }}</span>
                         </div>
                       </div>
                     </div>
-                  </article>
+                  </div>
                 </div>
               </section>
             </div>
@@ -378,6 +389,24 @@ const toTitleCase = (value) => {
       return word.charAt(0).toUpperCase() + word.slice(1)
     })
     .join(' ')
+}
+
+const getTeamColor = (teamName) => {
+  const colors = [
+    '#ff6b6b', '#ffd93d', '#6bcf7f', '#4d96ff', '#ff9ff3',
+    '#54a0ff', '#ff6a88', '#ffa502', '#00d2d3', '#845ef7',
+    '#ff6348', '#ffd500', '#00d159', '#005eff', '#ff006d'
+  ]
+  
+  if (!teamName) return colors[0]
+  
+  let hash = 0
+  for (let i = 0; i < teamName.length; i++) {
+    hash = ((hash << 5) - hash) + teamName.charCodeAt(i)
+    hash = hash & hash
+  }
+  
+  return colors[Math.abs(hash) % colors.length]
 }
 
 const splitBracketLabel = (value) => {
@@ -1253,16 +1282,16 @@ onMounted(async () => {
   color: rgba(194, 231, 221, 0.72);
 }
 
-.bracket-sections {
+.bracket-container {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 24px;
 }
 
 .bracket-section {
   border: 1px solid rgba(67, 203, 156, 0.14);
   border-radius: 18px;
-  padding: 12px;
+  padding: 24px;
   background: linear-gradient(180deg, rgba(6, 14, 12, 0.58), rgba(2, 8, 7, 0.84));
 }
 
@@ -1271,253 +1300,202 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: flex-end;
   gap: 12px;
-  margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(67, 203, 156, 0.12);
+  margin-bottom: 28px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid rgba(67, 203, 156, 0.18);
 }
 
 .bracket-section-header h4 {
   margin: 0;
   color: #effaf7;
-  font-size: 18px;
+  font-size: 28px;
   font-weight: 900;
   letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .bracket-section-header p {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   color: rgba(194, 231, 221, 0.72);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .section-kicker {
   display: inline-flex;
   align-items: center;
-  margin-bottom: 4px;
-  font-size: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: rgba(180, 232, 219, 0.7);
+  font-weight: 700;
 }
 
-.bracket-columns {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(240px, 1fr);
-  gap: 12px;
-  align-items: start;
+.bracket-visual {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: 16px;
 }
 
-.bracket-column {
-  position: relative;
-  border: 1px solid rgba(67, 203, 156, 0.18);
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(5, 14, 12, 0.9), rgba(2, 8, 7, 0.97));
-  padding: 12px;
-  min-width: 240px;
-  overflow: hidden;
-}
-
-.bracket-column::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 5px;
-  background: linear-gradient(90deg, rgba(67, 203, 156, 0.95), rgba(110, 249, 209, 0.5));
-}
-
-.bracket-column::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  right: -18px;
-  width: 18px;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(67, 203, 156, 0.6), transparent);
-}
-
-.bracket-column-head {
+.bracket-rounds {
   display: flex;
+  gap: 32px;
   align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 10px;
+  min-width: max-content;
 }
 
-.round-index {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 50px;
-  padding: 5px 8px;
-  border-radius: 999px;
-  background: rgba(67, 203, 156, 0.13);
-  border: 1px solid rgba(67, 203, 156, 0.24);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.round-count {
-  margin-top: 4px;
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(194, 231, 221, 0.68);
-}
-
-.bracket-round-title {
-  font-size: 13px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #effaf7;
-}
-
-.bracket-matches {
+.bracket-round {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.bracket-match {
+  gap: 16px;
+  min-width: 280px;
   position: relative;
-  border: 1px solid rgba(67, 203, 156, 0.15);
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(8, 22, 19, 0.97), rgba(2, 9, 8, 0.99));
-  padding: 10px 10px 9px;
-  box-shadow: inset 0 0 0 1px rgba(67, 203, 156, 0.06), 0 10px 22px rgba(0, 0, 0, 0.22);
 }
 
-.bracket-match + .bracket-match {
-  margin-top: 4px;
-}
-
-.bracket-match::before {
+.bracket-round::after {
   content: '';
   position: absolute;
-  inset: 10px auto 10px 8px;
-  width: 2px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(67, 203, 156, 0.95), rgba(67, 203, 156, 0.08));
-  opacity: 0.75;
-}
-
-.bracket-match::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: calc(100% + 1px);
-  width: 16px;
+  top: 60px;
+  left: 100%;
+  width: 30px;
   height: 2px;
-  background: linear-gradient(90deg, rgba(67, 203, 156, 0.5), transparent);
+  background: linear-gradient(90deg, rgba(67, 203, 156, 0.4), transparent);
 }
 
-.bracket-match-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-}
-
-.match-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 8px;
-  border-radius: 999px;
-  background: rgba(67, 203, 156, 0.16);
-  border: 1px solid rgba(67, 203, 156, 0.26);
-  color: #baf6e4;
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 900;
-}
-
-.match-time {
-  color: rgba(194, 231, 221, 0.74);
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 800;
-}
-
-.match-title {
-  margin-top: 10px;
-  color: #effaf7;
-  font-size: 15px;
-  line-height: 1.2;
-  font-weight: 900;
-  letter-spacing: 0.01em;
-}
-
-.match-subtitle {
-  margin-top: 4px;
-  color: rgba(194, 231, 221, 0.7);
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-.bracket-teams {
+.round-header {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 4px;
+  padding: 12px 16px;
+  background: rgba(67, 203, 156, 0.08);
+  border: 1px solid rgba(67, 203, 156, 0.2);
+  border-radius: 10px;
 }
 
-.bracket-team {
+.round-label {
+  font-size: 16px;
+  font-weight: 800;
+  color: #8ef8df;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.round-meta {
+  font-size: 12px;
+  color: rgba(194, 231, 221, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.matches-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.bracket-matchup {
+  position: relative;
+  background: linear-gradient(180deg, rgba(8, 22, 19, 0.7), rgba(2, 9, 8, 0.85));
+  border: 1px solid rgba(67, 203, 156, 0.18);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.matchup-container {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.matchup-team {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 14px 16px;
   gap: 12px;
-  padding: 7px 10px 7px 12px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, rgba(67, 203, 156, 0.08), rgba(67, 203, 156, 0.04));
-  border: 1px solid rgba(67, 203, 156, 0.1);
-  margin-left: 6px;
+  transition: all 0.3s ease;
+  border-bottom: 1px solid rgba(67, 203, 156, 0.1);
 }
 
-.bracket-team.winner {
-  background: linear-gradient(180deg, rgba(67, 203, 156, 0.2), rgba(67, 203, 156, 0.12));
-  border-color: rgba(67, 203, 156, 0.36);
+.matchup-team:last-child {
+  border-bottom: none;
 }
 
-.team-name-inline {
+.matchup-team.is-winner {
+  background: rgba(67, 203, 156, 0.12);
+}
+
+.matchup-team.is-winner .team-badge {
+  box-shadow: 0 0 12px rgba(67, 203, 156, 0.5);
+  border: 2px solid rgba(67, 203, 156, 0.6);
+}
+
+.team-slot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.team-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, currentColor 0%, rgba(255, 255, 255, 0.1) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.team-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.team-name {
+  font-size: 15px;
   font-weight: 800;
-  color: #edf7f4;
-  font-size: 11px;
-  line-height: 1.25;
-  max-width: 145px;
+  color: #e4e4e7;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .team-score {
+  font-size: 20px;
   font-weight: 900;
   color: #8ef8df;
-  font-size: 13px;
-  min-width: 20px;
+}
+
+.match-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   text-align: right;
 }
 
-.bracket-vs {
-  text-align: center;
-  color: rgba(194, 231, 221, 0.55);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  font-weight: 800;
+.time-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  background: rgba(67, 203, 156, 0.15);
+  color: rgba(194, 231, 221, 0.8);
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
-.bracket-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 7px;
-  font-size: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(185, 226, 216, 0.72);
+.matchup-divider {
+  height: 2px;
+  background: linear-gradient(90deg, rgba(67, 203, 156, 0.1), transparent);
 }
 
 .bracket-fade-enter-active,
@@ -1672,6 +1650,40 @@ onMounted(async () => {
     grid-auto-columns: minmax(260px, 1fr);
   }
 
+  .bracket-section {
+    padding: 16px;
+  }
+
+  .bracket-section-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .bracket-section-header h4 {
+    font-size: 20px;
+  }
+
+  .bracket-rounds {
+    gap: 24px;
+  }
+
+  .bracket-round {
+    min-width: 240px;
+  }
+
+  .matchup-team {
+    padding: 12px 14px;
+  }
+
+  .team-badge {
+    width: 48px;
+    height: 48px;
+  }
+
+  .team-name {
+    font-size: 13px;
+  }
+
   .bracket-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1692,6 +1704,27 @@ onMounted(async () => {
   }
 
   .bracket-section-header h4 {
+    font-size: 18px;
+  }
+
+  .bracket-round {
+    min-width: 200px;
+  }
+
+  .matchup-team {
+    padding: 10px 12px;
+  }
+
+  .team-badge {
+    width: 40px;
+    height: 40px;
+  }
+
+  .team-name {
+    font-size: 12px;
+  }
+
+  .team-score {
     font-size: 18px;
   }
 }

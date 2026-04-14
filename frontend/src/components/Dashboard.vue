@@ -166,7 +166,7 @@ onMounted(async () => {
 .dashboard {
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 50px;
 }
 
 .dashboard-header {
@@ -181,25 +181,25 @@ onMounted(async () => {
 }
 
 .page-title {
-  font-size: 42px;
+  font-size: 56px;
   font-weight: 800;
-  margin: 0 0 8px;
+  margin: 0 0 12px;
   color: #e4e4e7;
   letter-spacing: -0.02em;
 }
 
 .page-subtitle {
-  font-size: 16px;
+  font-size: 20px;
   color: rgba(228, 228, 231, 0.6);
   margin: 0;
 }
 
 .refresh-indicator {
-  font-size: 12px;
-  padding: 8px 16px;
+  font-size: 15px;
+  padding: 10px 18px;
   background: rgba(64, 224, 208, 0.1);
   border: 1px solid rgba(64, 224, 208, 0.2);
-  border-radius: 6px;
+  border-radius: 8px;
   color: rgba(64, 224, 208, 0.8);
   font-family: 'Courier New', monospace;
 }
@@ -216,15 +216,15 @@ onMounted(async () => {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 28px;
 }
 
 .stat-card {
   background: linear-gradient(135deg, rgba(64, 224, 208, 0.08) 0%, rgba(30, 144, 255, 0.08) 100%);
   border: 1px solid rgba(64, 224, 208, 0.2);
   border-radius: 12px;
-  padding: 24px;
+  padding: 32px;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
@@ -270,12 +270,12 @@ onMounted(async () => {
 .stat-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 14px;
+  margin-bottom: 20px;
 }
 
 .stat-icon {
-  font-size: 24px;
+  font-size: 28px;
 }
 
 .stat-icon.live {
@@ -288,7 +288,7 @@ onMounted(async () => {
 }
 
 .stat-title {
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 600;
   color: rgba(228, 228, 231, 0.8);
   text-transform: uppercase;
@@ -296,22 +296,22 @@ onMounted(async () => {
 }
 
 .stat-value {
-  font-size: 48px;
+  font-size: 56px;
   font-weight: 800;
   color: #40e0d0;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   line-height: 1;
 }
 
 .stat-footer {
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(228, 228, 231, 0.5);
 }
 
 .section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 28px;
 }
 
 .section-header {
@@ -322,7 +322,7 @@ onMounted(async () => {
 }
 
 .section-title {
-  font-size: 24px;
+  font-size: 32px;
   font-weight: 700;
   margin: 0;
   color: #e4e4e7;
@@ -330,27 +330,27 @@ onMounted(async () => {
 
 .live-pulse {
   display: inline-block;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
-  padding: 4px 10px;
+  padding: 6px 12px;
   background: #ff6b6b;
   color: white;
-  border-radius: 4px;
+  border-radius: 6px;
   letter-spacing: 0.05em;
   animation: blink 1.5s infinite;
 }
 
 .matches-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  gap: 28px;
 }
 
 .live-match-card {
   background: linear-gradient(135deg, rgba(255, 107, 107, 0.08) 0%, rgba(255, 107, 107, 0.04) 100%);
   border: 2px solid rgba(255, 107, 107, 0.25);
   border-radius: 12px;
-  padding: 24px;
+  padding: 32px;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
@@ -375,14 +375,14 @@ onMounted(async () => {
 
 .match-status {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  font-size: 10px;
+  top: 16px;
+  right: 16px;
+  font-size: 12px;
   font-weight: 800;
-  padding: 4px 10px;
+  padding: 6px 12px;
   background: #ff6b6b;
   color: white;
-  border-radius: 4px;
+  border-radius: 6px;
   letter-spacing: 0.05em;
 }
 
@@ -409,21 +409,21 @@ onMounted(async () => {
 }
 
 .team-logo {
-  width: 70px;
-  height: 70px;
-  border-radius: 8px;
+  width: 90px;
+  height: 90px;
+  border-radius: 10px;
   object-fit: contain;
   background: rgba(0, 0, 0, 0.2);
-  padding: 4px;
+  padding: 6px;
   border: 1px solid rgba(64, 224, 208, 0.15);
 }
 
 .team-name {
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 700;
   color: #e4e4e7;
   text-align: center;
-  max-width: 120px;
+  max-width: 150px;
   line-height: 1.2;
 }
 
@@ -434,15 +434,15 @@ onMounted(async () => {
 }
 
 .score {
-  font-size: 42px;
+  font-size: 56px;
   font-weight: 800;
   color: #40e0d0;
-  min-width: 50px;
+  min-width: 70px;
   text-align: center;
 }
 
 .divider {
-  font-size: 32px;
+  font-size: 42px;
   color: rgba(228, 228, 231, 0.3);
 }
 
@@ -451,14 +451,14 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
-  gap: 20px;
+  padding: 100px 20px;
+  gap: 24px;
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(64, 224, 208, 0.2);
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(64, 224, 208, 0.2);
   border-top-color: #40e0d0;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -470,9 +470,9 @@ onMounted(async () => {
 
 .empty-state {
   text-align: center;
-  padding: 40px 20px;
+  padding: 60px 20px;
   color: rgba(228, 228, 231, 0.5);
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .upcoming-list {
@@ -483,13 +483,13 @@ onMounted(async () => {
 
 .upcoming-item {
   display: grid;
-  grid-template-columns: 120px 1fr 140px;
+  grid-template-columns: 140px 1fr 160px;
   align-items: center;
-  gap: 20px;
-  padding: 16px;
+  gap: 24px;
+  padding: 20px;
   background: rgba(64, 224, 208, 0.05);
   border: 1px solid rgba(64, 224, 208, 0.15);
-  border-radius: 8px;
+  border-radius: 10px;
   transition: all 0.3s ease;
 }
 
@@ -499,7 +499,7 @@ onMounted(async () => {
 }
 
 .upcoming-time {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba(64, 224, 208, 0.8);
   font-family: 'Courier New', monospace;
@@ -508,8 +508,8 @@ onMounted(async () => {
 .upcoming-match {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 14px;
+  gap: 14px;
+  font-size: 18px;
 }
 
 .team-name-short {
@@ -520,19 +520,19 @@ onMounted(async () => {
 }
 
 .vs-text {
-  font-size: 11px;
+  font-size: 13px;
   color: rgba(228, 228, 231, 0.5);
   font-weight: 600;
   text-transform: uppercase;
 }
 
 .league-badge {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  padding: 4px 10px;
+  padding: 6px 12px;
   background: rgba(30, 144, 255, 0.15);
   color: #6496ff;
-  border-radius: 4px;
+  border-radius: 6px;
   text-align: right;
 }
 
@@ -542,7 +542,7 @@ onMounted(async () => {
   }
   
   .page-title {
-    font-size: 32px;
+    font-size: 44px;
   }
 }
 

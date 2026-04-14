@@ -34,6 +34,7 @@ body {
   color: #e4e4e7;
   overflow-x: hidden;
   min-height: 100vh;
+  font-size: 16px;
 }
 
 #app {
@@ -78,7 +79,7 @@ footer {
 
 .main-content {
   flex: 1;
-  padding: 132px 20px 40px;
+  padding: 150px 32px 60px;
   max-width: 1600px;
   margin: 0 auto;
   width: 100%;
@@ -88,7 +89,7 @@ footer {
 
 @media (max-width: 768px) {
   .main-content {
-    padding: 108px 12px 20px;
+    padding: 120px 16px 40px;
   }
 }
 </style>

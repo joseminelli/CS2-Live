@@ -38,7 +38,7 @@ import { RouterLink } from 'vue-router'
   background: rgba(10, 14, 39, 0.8);
   backdrop-filter: blur(10px);
   border-top: 1px solid rgba(64, 224, 208, 0.15);
-  padding: 60px 40px 30px;
+  padding: 80px 40px 40px;
   margin-top: 100px;
   position: relative;
   z-index: 0;
@@ -54,18 +54,18 @@ import { RouterLink } from 'vue-router'
 }
 
 .footer-section h4 {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: #40e0d0;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .footer-section p {
-  font-size: 14px;
+  font-size: 16px;
   color: rgba(228, 228, 231, 0.7);
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .footer-section ul {
@@ -73,14 +73,14 @@ import { RouterLink } from 'vue-router'
 }
 
 .footer-section ul li {
-  margin: 8px 0;
+  margin: 10px 0;
 }
 
 .footer-section a {
   color: rgba(64, 224, 208, 0.8);
   text-decoration: none;
   transition: all 0.3s ease;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .footer-section a:hover {
@@ -90,9 +90,9 @@ import { RouterLink } from 'vue-router'
 
 .footer-bottom {
   border-top: 1px solid rgba(64, 224, 208, 0.1);
-  padding-top: 30px;
+  padding-top: 40px;
   text-align: center;
-  font-size: 12px;
+  font-size: 14px;
   color: rgba(228, 228, 231, 0.5);
 }
 

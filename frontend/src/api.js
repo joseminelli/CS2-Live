@@ -1,6 +1,16 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'http://localhost:5000/api'
+// Detecta o ambiente e usa a URL apropriada
+const getApiBaseUrl = () => {
+  // Em produção (vercel/deploy)
+  if (import.meta.env.PROD) {
+    return import.meta.env.VITE_API_BASE_URL_PROD || 'https://cs-2-live.vercel.app/api'
+  }
+  // Em desenvolvimento (localhost)
+  return import.meta.env.VITE_API_BASE_URL_DEV || 'http://localhost:5000/api'
+}
+
+const API_BASE_URL = getApiBaseUrl()
 
 const api = axios.create({
   baseURL: API_BASE_URL,
