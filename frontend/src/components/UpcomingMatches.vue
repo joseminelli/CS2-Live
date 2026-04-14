@@ -29,7 +29,7 @@
       </div>
     </div>
     
-    <div v-if="loading" class="loading-state">
+    <div v-if="loading || globalSearchLoading" class="loading-state">
       <div class="spinner"></div>
       <p>Carregando...</p>
     </div>
@@ -95,7 +95,7 @@
 
     <TeamInfoModal v-model="teamModalOpen" :team="selectedTeam" />
 
-    <div class="pagination" v-if="!loading && matches.length > 0">
+    <div class="pagination" v-if="!loading && !globalSearchLoading && !searchQuery.trim() && matches.length > 0">
       <button class="pagination-btn" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">Anterior</button>
       <span class="pagination-info">Pagina {{ currentPage }}</span>
       <button class="pagination-btn" :disabled="!hasNextPage" @click="goToPage(currentPage + 1)">Proxima</button>
@@ -123,6 +123,12 @@ const hasNextPage = ref(false)
 const pageSize = 20
 const teamModalOpen = ref(false)
 const selectedTeam = ref({})
+const globalSearchMatches = ref([])
+const globalSearchLoading = ref(false)
+const hasGlobalSearchDataset = ref(false)
+const SEARCH_WINDOW_DAYS = 30
+const GLOBAL_SEARCH_PAGE_SIZE = 50
+const GLOBAL_SEARCH_MAX_PAGES = 8
 
 const sortOptions = [
   { key: 'date', label: '📅 Data' },
@@ -160,7 +166,11 @@ const openTeamModal = (team) => {
 }
 
 const filteredMatches = computed(() => {
-  let result = matches.value
+  const baseData = searchQuery.value.trim()
+    ? (hasGlobalSearchDataset.value ? globalSearchMatches.value : [])
+    : matches.value
+
+  let result = baseData
   
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
@@ -186,6 +196,46 @@ const filteredMatches = computed(() => {
   
   return result
 })
+
+const ensureGlobalSearchDataset = async () => {
+  if (hasGlobalSearchDataset.value || globalSearchLoading.value) return
+
+  globalSearchLoading.value = true
+  try {
+    const now = Date.now()
+    const upperLimit = now + (SEARCH_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+    const collected = []
+
+    for (let page = 1; page <= GLOBAL_SEARCH_MAX_PAGES; page += 1) {
+      const response = await matchesAPI.getUpcoming({
+        all: false,
+        per_page: GLOBAL_SEARCH_PAGE_SIZE,
+        page,
+        sort: 'scheduled_at'
+      })
+
+      const pageItems = Array.isArray(response.data) ? response.data : []
+      if (pageItems.length === 0) break
+
+      pageItems.forEach((match) => {
+        const timestamp = Date.parse(match?.scheduled_at)
+        if (Number.isFinite(timestamp) && timestamp <= upperLimit) {
+          collected.push(match)
+        }
+      })
+
+      const lastDate = Date.parse(pageItems[pageItems.length - 1]?.scheduled_at)
+      if (!Number.isFinite(lastDate) || lastDate > upperLimit || pageItems.length < GLOBAL_SEARCH_PAGE_SIZE) {
+        break
+      }
+    }
+
+    globalSearchMatches.value = collected
+    hasGlobalSearchDataset.value = true
+  } finally {
+    globalSearchLoading.value = false
+  }
+}
 
 onMounted(async () => {
   try {
@@ -235,6 +285,15 @@ watch(
   async () => {
     syncPageFromUrl()
     await fetchMatches()
+  }
+)
+
+watch(
+  () => searchQuery.value,
+  async (value) => {
+    if (value.trim()) {
+      await ensureGlobalSearchDataset()
+    }
   }
 )
 </script>

@@ -29,7 +29,7 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading-state">
+    <div v-if="loading || globalSearchLoading" class="loading-state">
       <div class="spinner"></div>
       <p>Carregando torneios...</p>
     </div>
@@ -276,7 +276,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { tournamentsAPI } from '../api.js'
 import { getChampionshipPriority } from '../utils/matchDisplay.js'
 
@@ -292,6 +292,12 @@ const selectedChampionship = ref(null)
 const bracketStages = ref([])
 const selectedBracketStageId = ref('')
 const bracketRounds = ref([])
+const globalSearchLoading = ref(false)
+const globalSearchTournaments = ref([])
+const hasGlobalSearchDataset = ref(false)
+const SEARCH_WINDOW_DAYS = 30
+const GLOBAL_SEARCH_PAGE_SIZE = 50
+const GLOBAL_SEARCH_MAX_PAGES = 10
 
 const activeBracketStage = computed(() => {
   return bracketStages.value.find((stage) => stage.id === selectedBracketStageId.value) || null
@@ -716,9 +722,13 @@ const getGroupKey = (tournament) => {
 }
 
 const groupedChampionships = computed(() => {
+  const sourceTournaments = searchQuery.value.trim()
+    ? (hasGlobalSearchDataset.value ? globalSearchTournaments.value : [])
+    : tournaments.value
+
   const grouped = new Map()
 
-  tournaments.value.forEach((tournament, index) => {
+  sourceTournaments.forEach((tournament, index) => {
     const key = getGroupKey(tournament)
 
     if (!grouped.has(key)) {
@@ -824,6 +834,72 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+const ensureGlobalSearchDataset = async () => {
+  if (hasGlobalSearchDataset.value || globalSearchLoading.value) return
+
+  globalSearchLoading.value = true
+  try {
+    const now = Date.now()
+    const lowerLimit = now - (SEARCH_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+    const upperLimit = now + (SEARCH_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+    const collected = []
+    let reachedWindow = false
+
+    for (let page = 1; page <= GLOBAL_SEARCH_MAX_PAGES; page += 1) {
+      const response = await tournamentsAPI.getAll({
+        all: false,
+        per_page: GLOBAL_SEARCH_PAGE_SIZE,
+        page,
+        sort: '-begin_at'
+      })
+
+      const pageItems = Array.isArray(response.data) ? response.data : []
+      if (pageItems.length === 0) break
+
+      pageItems.forEach((tournament) => {
+        const timestamp = Date.parse(tournament?.begin_at || tournament?.modified_at || tournament?.created_at)
+        if (!Number.isFinite(timestamp)) return
+
+        if (timestamp <= upperLimit) {
+          reachedWindow = true
+        }
+
+        if (timestamp >= lowerLimit && timestamp <= upperLimit) {
+          collected.push(tournament)
+        }
+      })
+
+      const lastTimestamp = Date.parse(
+        pageItems[pageItems.length - 1]?.begin_at
+        || pageItems[pageItems.length - 1]?.modified_at
+        || pageItems[pageItems.length - 1]?.created_at
+      )
+
+      if (!Number.isFinite(lastTimestamp) || pageItems.length < GLOBAL_SEARCH_PAGE_SIZE) {
+        break
+      }
+
+      if (reachedWindow && lastTimestamp < lowerLimit) {
+        break
+      }
+    }
+
+    globalSearchTournaments.value = collected
+    hasGlobalSearchDataset.value = true
+  } finally {
+    globalSearchLoading.value = false
+  }
+}
+
+watch(
+  () => searchQuery.value,
+  async (value) => {
+    if (value.trim()) {
+      await ensureGlobalSearchDataset()
+    }
+  }
+)
 </script>
 
 <style scoped>

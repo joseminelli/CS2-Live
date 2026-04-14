@@ -384,14 +384,28 @@ app.get('/api/series', async (req, res) => {
 // Get tournaments
 app.get('/api/tournaments', async (req, res) => {
   try {
+    const perPage = parsePositiveInt(req.query.per_page, 50);
+    const page = parsePositiveInt(req.query.page, 1);
+    const fetchAll = parseBoolean(req.query.all, false);
+    const sort = req.query.sort || '-begin_at';
+
+    if (fetchAll) {
+      const allTournaments = await fetchAllPaginated('/csgo/tournaments', {
+        sort,
+        page,
+        filter: req.query.filter
+      });
+      return res.json(allTournaments);
+    }
+
     const params = {
-      per_page: req.query.per_page || 50,
-      page: req.query.page || 1,
-      sort: req.query.sort || '-begin_at'
+      per_page: perPage,
+      page,
+      sort
     };
-    
+
     if (req.query.filter) params.filter = req.query.filter;
-    
+
     const data = await cachedPandaGet('/csgo/tournaments', params, CACHE_TTL_DEFAULT_MS);
     res.json(data);
   } catch (error) {

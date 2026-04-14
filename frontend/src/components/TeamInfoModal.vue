@@ -27,19 +27,11 @@
           <div class="team-info-grid">
             <div class="info-item">
               <span class="info-label">Regiao</span>
-              <strong class="info-value">{{ teamDetails?.location || teamDetails?.region || team?.location || team?.region || 'N/A' }}</strong>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Slug</span>
-              <strong class="info-value">{{ teamDetails?.slug || team?.slug || 'N/A' }}</strong>
+              <strong class="info-value">{{ displayRegion }}</strong>
             </div>
             <div class="info-item">
               <span class="info-label">Ultima atualizacao</span>
               <strong class="info-value">{{ formatDate(teamDetails?.modified_at || team?.modified_at) }}</strong>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Jogadores</span>
-              <strong class="info-value">{{ players.length }}</strong>
             </div>
           </div>
 
@@ -49,9 +41,23 @@
             <div v-if="loading" class="players-empty">Carregando dados do time...</div>
             <div v-else-if="players.length === 0" class="players-empty">Elenco indisponivel</div>
             <div v-else class="players-list">
-              <span v-for="player in players" :key="player.id || player.slug || player.name" class="player-chip">
-                {{ player.name || player.slug || 'Jogador' }}
-              </span>
+              <article v-for="player in players" :key="player.id || player.slug || player.name" class="player-card">
+                <div class="player-avatar-wrap">
+                  <img
+                    v-if="player.image_url"
+                    :src="player.image_url"
+                    :alt="player.name || 'Jogador'"
+                    class="player-avatar"
+                  >
+                  <div v-else class="player-avatar-placeholder">?</div>
+                </div>
+
+                <div class="player-meta">
+                  <strong class="player-name">{{ player.name || player.slug || 'Jogador' }}</strong>
+                  <span class="player-detail">{{ formatCountryName(player.nationality) }}</span>
+                  <span class="player-detail">Idade: {{ Number.isFinite(Number(player.age)) ? player.age : 'N/A' }}</span>
+                </div>
+              </article>
             </div>
           </div>
         </div>
@@ -63,6 +69,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { teamsAPI } from '../api.js'
+
+const fallbackTeamsById = new Map()
+let fallbackTeamsLoaded = false
+let fallbackTeamsRequest = null
 
 const props = defineProps({
   modelValue: {
@@ -81,6 +91,10 @@ const loading = ref(false)
 const teamDetails = ref(null)
 const detailsCache = new Map()
 
+const regionNames = typeof Intl !== 'undefined' && Intl.DisplayNames
+  ? new Intl.DisplayNames(['pt-BR'], { type: 'region' })
+  : null
+
 const displayName = computed(() => {
   return teamDetails.value?.name || props.team?.name || 'Time'
 })
@@ -88,6 +102,49 @@ const displayName = computed(() => {
 const players = computed(() => {
   const list = teamDetails.value?.players || props.team?.players || []
   return Array.isArray(list) ? list : []
+})
+
+const formatRegionName = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return 'N/A'
+
+  const normalized = raw.replace(/[^A-Za-z]/g, '').toUpperCase()
+  if (normalized.length === 2 && regionNames) {
+    try {
+      const translated = regionNames.of(normalized)
+      if (translated) return translated
+    } catch (error) {
+      // Ignore invalid region codes and fallback to raw value.
+    }
+  }
+
+  return raw
+}
+
+const formatCountryName = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return 'N/A'
+
+  const normalized = raw.replace(/[^A-Za-z]/g, '').toUpperCase()
+  if (normalized.length === 2 && regionNames) {
+    try {
+      const translated = regionNames.of(normalized)
+      if (translated) return translated
+    } catch (error) {
+      // Ignore invalid nationality code and fallback to raw value.
+    }
+  }
+
+  return raw
+}
+
+const displayRegion = computed(() => {
+  return formatRegionName(
+    teamDetails.value?.location
+    || teamDetails.value?.region
+    || props.team?.location
+    || props.team?.region
+  )
 })
 
 const close = () => {
@@ -105,6 +162,57 @@ const formatDate = (value) => {
     month: 'short',
     year: 'numeric'
   })
+}
+
+const ensureFallbackTeams = async () => {
+  if (fallbackTeamsLoaded) return
+  if (fallbackTeamsRequest) {
+    await fallbackTeamsRequest
+    return
+  }
+
+  fallbackTeamsRequest = (async () => {
+    const response = await teamsAPI.getAll({ all: true, sort: '-modified_at' })
+    const list = Array.isArray(response.data) ? response.data : []
+
+    fallbackTeamsById.clear()
+    list.forEach((team) => {
+      if (team?.id != null) {
+        fallbackTeamsById.set(team.id, team)
+      }
+    })
+
+    fallbackTeamsLoaded = true
+  })()
+
+  try {
+    await fallbackTeamsRequest
+  } finally {
+    fallbackTeamsRequest = null
+  }
+}
+
+const mergeWithFallback = async (baseData, teamId) => {
+  if (!teamId) return baseData
+
+  const hasPlayers = Array.isArray(baseData?.players) && baseData.players.length > 0
+  if (hasPlayers) return baseData
+
+  try {
+    await ensureFallbackTeams()
+    const fallback = fallbackTeamsById.get(teamId)
+
+    if (!fallback) return baseData
+
+    return {
+      ...fallback,
+      ...baseData,
+      players: hasPlayers ? baseData.players : (fallback.players || [])
+    }
+  } catch (error) {
+    console.error('Error loading fallback teams list:', error)
+    return baseData
+  }
 }
 
 const loadTeamDetails = async () => {
@@ -132,13 +240,14 @@ const loadTeamDetails = async () => {
   try {
     loading.value = true
     const response = await teamsAPI.getById(teamId)
-    teamDetails.value = response.data || props.team
+    const resolvedData = await mergeWithFallback(response.data || props.team, teamId)
+    teamDetails.value = resolvedData
     if (teamDetails.value) {
       detailsCache.set(teamId, teamDetails.value)
     }
   } catch (error) {
     console.error('Error loading team details:', error)
-    teamDetails.value = props.team || null
+    teamDetails.value = await mergeWithFallback(props.team || null, teamId)
   } finally {
     loading.value = false
   }
@@ -280,18 +389,63 @@ watch(
 }
 
 .players-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
 }
 
-.player-chip {
-  padding: 6px 10px;
-  border-radius: 999px;
+.player-card {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 10px;
   border: 1px solid rgba(64, 224, 208, 0.3);
-  background: rgba(64, 224, 208, 0.12);
+  background: rgba(64, 224, 208, 0.1);
+}
+
+.player-avatar-wrap {
+  flex-shrink: 0;
+}
+
+.player-avatar,
+.player-avatar-placeholder {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+}
+
+.player-avatar {
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.player-avatar-placeholder {
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  font-weight: 800;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.player-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.player-name {
+  font-size: 13px;
   color: #ddfff8;
-  font-size: 12px;
+  line-height: 1.3;
+}
+
+.player-detail {
+  font-size: 11px;
+  color: rgba(221, 255, 248, 0.72);
 }
 
 .team-modal-fade-enter-active,
