@@ -160,15 +160,24 @@
                       :style="getRoundColumnStyle(roundIndex)">
                       <div class="flow-round-label">{{ round.label }}</div>
                       <div class="round-match-list">
-                        <div v-for="match in round.matches" :key="match.key" class="playoff-matchup">
+                        <div
+                          v-for="match in round.matches"
+                          :key="match.key"
+                          class="playoff-matchup"
+                          :class="{ 'is-live': match.isLive, clickable: match.isLive && match.liveUrl }"
+                          :role="match.isLive && match.liveUrl ? 'button' : undefined"
+                          :tabindex="match.isLive && match.liveUrl ? 0 : undefined"
+                          @click="openMatchLive(match)"
+                          @keydown.enter.prevent="openMatchLive(match)">
+                          <div v-if="match.isLive" class="live-indicator">LIVE</div>
                           <div class="team-box" :class="{ winner: match.winner === 0 }">
                             <span class="team-name-short">{{ match.teamA }}</span>
-                            <span class="team-score-value">{{ match.scoreA || '—' }}</span>
+                            <span class="team-score-value">{{ match.scoreA }}</span>
                           </div>
                           <div class="divider"></div>
                           <div class="team-box" :class="{ winner: match.winner === 1 }">
                             <span class="team-name-short">{{ match.teamB }}</span>
-                            <span class="team-score-value">{{ match.scoreB || '—' }}</span>
+                            <span class="team-score-value">{{ match.scoreB }}</span>
                           </div>
                         </div>
                       </div>
@@ -494,6 +503,45 @@ const getRoundSortValue = (item) => {
   return 1000
 }
 
+const getFirstDefined = (...values) => values.find((value) => value !== null && value !== undefined && value !== '')
+
+const parseScoreValue = (value) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const formatMatchScore = (rawScore, statusKey) => {
+  if (statusKey === 'upcoming') return '-'
+  const parsed = parseScoreValue(rawScore)
+  return parsed === null ? '-' : String(parsed)
+}
+
+const getOfficialLiveUrl = (item) => {
+  const streams = Array.isArray(item?.streams_list) ? item.streams_list : []
+
+  const direct = [
+    item?.official_stream_url,
+    item?.official_live_url,
+    item?.stream_url,
+    item?.live_url,
+    item?.broadcast_url,
+    item?.watch_url,
+    item?.twitch_url
+  ]
+
+  const streamCandidates = streams.flatMap((stream) => [
+    stream?.official_url,
+    stream?.raw_url,
+    stream?.embed_url,
+    stream?.url
+  ])
+
+  const candidate = [...direct, ...streamCandidates]
+    .find((value) => typeof value === 'string' && /^https?:\/\//i.test(value.trim()))
+
+  return candidate ? candidate.trim() : ''
+}
+
 const normalizeBracketMatches = (payload) => {
   const items = extractArray(payload)
   const lookup = new Map(items.filter((item) => item?.id != null).map((item) => [item.id, item]))
@@ -522,18 +570,27 @@ const normalizeBracketMatches = (payload) => {
 
     const teamA = item.opponents?.[0]?.opponent?.name || item.opponents?.[0]?.name || item.team1?.name || item.home_team?.name || 'TBD'
     const teamB = item.opponents?.[1]?.opponent?.name || item.opponents?.[1]?.name || item.team2?.name || item.away_team?.name || 'TBD'
-    const scoreA = item.results?.[0]?.score ?? item.scores?.[0] ?? item.team1_score ?? '-'
-    const scoreB = item.results?.[1]?.score ?? item.scores?.[1] ?? item.team2_score ?? '-'
+    const statusKey = normalizeStatus(item.status || item.state || 'upcoming')
+    const rawScoreA = getFirstDefined(item.results?.[0]?.score, item.scores?.[0], item.team1_score)
+    const rawScoreB = getFirstDefined(item.results?.[1]?.score, item.scores?.[1], item.team2_score)
+    const scoreA = formatMatchScore(rawScoreA, statusKey)
+    const scoreB = formatMatchScore(rawScoreB, statusKey)
     const matchLabel = getBracketMatchLabel(item)
     const matchupLabel = matchLabel.subtitle || `${teamA} vs ${teamB}`
 
-    const winner = scoreA !== '-' && scoreB !== '-'
-      ? Number(scoreA) > Number(scoreB)
+    const scoreANumeric = parseScoreValue(rawScoreA)
+    const scoreBNumeric = parseScoreValue(rawScoreB)
+
+    const winner = scoreANumeric !== null && scoreBNumeric !== null
+      ? scoreANumeric > scoreBNumeric
         ? 0
-        : Number(scoreB) > Number(scoreA)
+        : scoreBNumeric > scoreANumeric
           ? 1
           : null
       : null
+
+    const liveUrl = getOfficialLiveUrl(item)
+    const isLive = statusKey === 'running'
 
     const timeValue = item.begin_at || item.scheduled_at || item.start_at || item.date || ''
 
@@ -544,11 +601,14 @@ const normalizeBracketMatches = (payload) => {
       scoreA,
       scoreB,
       winner,
+      isLive,
+      liveUrl,
+      statusKey,
       sequence: getRoundSequence(item),
       stageLabel: roundLabel,
       matchTitle: matchLabel.title,
       matchSubtitle: matchupLabel,
-      statusLabel: getStatusLabel(normalizeStatus(item.status || item.state || 'upcoming')),
+      statusLabel: getStatusLabel(statusKey),
       timeLabel: timeValue ? new Date(timeValue).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Sem horário',
       numberLabel: item.number ? `Jogo ${item.number}` : `Partida ${index + 1}`
     })
@@ -628,6 +688,11 @@ const selectBracketStage = async (stage) => {
   } catch (error) {
     bracketError.value = error?.message || 'Não foi possível carregar o estágio selecionado'
   }
+}
+
+const openMatchLive = (match) => {
+  if (!match?.isLive || !match?.liveUrl) return
+  window.open(match.liveUrl, '_blank', 'noopener,noreferrer')
 }
 
 const inferStatusByDate = (beginAt, endAt) => {
@@ -1362,6 +1427,33 @@ watch(
   overflow: hidden;
   transition: all 0.2s ease;
   min-height: 82px;
+}
+
+.playoff-matchup.clickable {
+  cursor: pointer;
+}
+
+.playoff-matchup.is-live {
+  border-color: rgba(255, 59, 48, 0.85);
+  box-shadow: 0 0 0 1px rgba(255, 59, 48, 0.3), 0 0 18px rgba(255, 59, 48, 0.22);
+}
+
+.playoff-matchup.is-live .team-score-value {
+  color: #ff3b30;
+}
+
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ffd9d6;
+  background: linear-gradient(90deg, rgba(255, 59, 48, 0.78), rgba(170, 22, 22, 0.9));
 }
 
 .playoff-matchup:hover {
