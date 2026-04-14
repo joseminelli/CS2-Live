@@ -71,8 +71,10 @@
               >
               <div v-else class="team-logo-fallback">?</div>
             </button>
-            <h3 class="team-name">{{ getTeamName(match.opponents[0]) }}</h3>
-            <span v-if="isWinner(match, 0)" class="winner-badge">VENCEDOR</span>
+            <div class="team-meta team-meta-left">
+              <h3 class="team-name">{{ getTeamName(match.opponents[0]) }}</h3>
+              <span v-if="isWinner(match, 0)" class="winner-badge winner-badge-left">VENCEDOR</span>
+            </div>
           </div>
           
           <div class="score-display">
@@ -86,8 +88,10 @@
           </div>
           
           <div class="team-section team-right" :class="{ winner: isWinner(match, 1) }">
-            <span v-if="isWinner(match, 1)" class="winner-badge">VENCEDOR</span>
-            <h3 class="team-name">{{ getTeamName(match.opponents[1]) }}</h3>
+            <div class="team-meta team-meta-right">
+              <h3 class="team-name">{{ getTeamName(match.opponents[1]) }}</h3>
+              <span v-if="isWinner(match, 1)" class="winner-badge winner-badge-right">VENCEDOR</span>
+            </div>
             <button class="team-logo-btn" type="button" @click="openTeamModal(match.opponents[1]?.opponent)">
               <img 
                 v-if="match.opponents[1]?.opponent?.image_url" 
@@ -728,7 +732,7 @@ watch(
 
 .matches-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 18px;
 }
 
@@ -775,24 +779,40 @@ watch(
 }
 
 .card-content {
-  padding: 20px;
+  padding: 16px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  align-items: stretch;
+  gap: 12px;
+  flex-direction: column;
 }
 
 .team-section {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+  gap: 10px;
   position: relative;
 }
 
 .team-section.team-right {
-  flex-direction: column-reverse;
+  flex-direction: row;
+}
+
+.team-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.team-meta-left {
+  align-items: flex-start;
+}
+
+.team-meta-right {
+  align-items: flex-end;
 }
 
 .team-section.winner {
@@ -808,8 +828,8 @@ watch(
 }
 
 .team-logo {
-  width: 70px;
-  height: 70px;
+  width: 60px;
+  height: 60px;
   border-radius: 8px;
   object-fit: contain;
   background: rgb(20 73 67 / 30%);
@@ -819,8 +839,8 @@ watch(
 }
 
 .team-logo-fallback {
-  width: 70px;
-  height: 70px;
+  width: 60px;
+  height: 60px;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -838,13 +858,17 @@ watch(
 }
 
 .team-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: #e4e4e7;
-  text-align: center;
+  text-align: left;
   margin: 0;
   line-height: 1.3;
-  max-width: 140px;
+  max-width: 130px;
+}
+
+.team-section.team-right .team-name {
+  text-align: right;
 }
 
 .team-section.winner .team-name {
@@ -852,6 +876,10 @@ watch(
 }
 
 .winner-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
   font-size: 10px;
   font-weight: 800;
   padding: 3px 8px;
@@ -862,17 +890,22 @@ watch(
   letter-spacing: 0.05em;
 }
 
+.winner-badge-right {
+  align-self: flex-end;
+}
+
 .score-display {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 12px;
-  min-width: 120px;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .score-box {
-  width: 100px;
-  height: 100px;
+  width: 80px;
+  height: 80px;
   background: rgba(0, 0, 0, 0.3);
   border: 2px solid rgba(64, 224, 208, 0.3);
   border-radius: 12px;
@@ -890,7 +923,7 @@ watch(
 }
 
 .score-digit {
-  font-size: 48px;
+  font-size: 36px;
   font-weight: 900;
   color: #40e0d0;
   position: relative;
@@ -908,11 +941,11 @@ watch(
 }
 
 .card-bottom {
-  padding: 12px 20px;
+  padding: 10px 14px;
   background: rgba(0, 0, 0, 0.1);
   border-top: 1px solid rgba(64, 224, 208, 0.1);
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -939,8 +972,23 @@ watch(
 
 .streams-buttons {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
+  max-width: 100%;
+  max-height: 70px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.streams-buttons::-webkit-scrollbar {
+  height: 6px;
+}
+
+.streams-buttons::-webkit-scrollbar-thumb {
+  background: rgba(64, 224, 208, 0.45);
+  border-radius: 999px;
 }
 
 .btn-stream {
@@ -956,6 +1004,7 @@ watch(
   text-transform: uppercase;
   letter-spacing: 0.03em;
   white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .btn-stream:hover {
@@ -997,49 +1046,6 @@ watch(
     gap: 12px;
   }
 
-  .matches-container {
-    grid-template-columns: 1fr;
-  }
-  
-  .card-content {
-    padding: 16px;
-    gap: 12px;
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .team-section,
-  .team-section.team-right {
-    flex-direction: row;
-    justify-content: center;
-    gap: 10px;
-  }
-  
-  .team-logo,
-  .team-logo-fallback {
-    width: 60px;
-    height: 60px;
-  }
-  
-  .team-name {
-    font-size: 14px;
-    text-align: left;
-    max-width: 130px;
-  }
-  
-  .score-box {
-    width: 80px;
-    height: 80px;
-  }
-  
-  .score-digit {
-    font-size: 36px;
-  }
-
-  .card-top,
-  .card-bottom {
-    padding: 10px 14px;
-  }
 }
 
 @media (max-width: 480px) {
@@ -1066,10 +1072,6 @@ watch(
 
   .score-digit {
     font-size: 28px;
-  }
-
-  .card-bottom {
-    justify-content: flex-start;
   }
 
   .btn-watch {

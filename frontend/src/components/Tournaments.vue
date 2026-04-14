@@ -556,6 +556,99 @@ const getRoundSortValue = (item) => {
 
 const getFirstDefined = (...values) => values.find((value) => value !== null && value !== undefined && value !== '')
 
+const normalizeId = (value) => {
+  if (value === null || value === undefined || value === '') return ''
+  return String(value)
+}
+
+const idsMatch = (left, right) => {
+  const a = normalizeId(left)
+  const b = normalizeId(right)
+  return a !== '' && b !== '' && a === b
+}
+
+const getOpponentFromMatch = (item, sideIndex) => {
+  const opponent = item?.opponents?.[sideIndex]
+  if (opponent?.opponent) return opponent.opponent
+  if (opponent) return opponent
+
+  if (sideIndex === 0) return item?.team1 || item?.home_team || null
+  return item?.team2 || item?.away_team || null
+}
+
+const getOpponentIdFromMatch = (item, sideIndex) => {
+  const opponent = item?.opponents?.[sideIndex]
+  const team = getOpponentFromMatch(item, sideIndex)
+
+  return getFirstDefined(
+    team?.id,
+    team?.team_id,
+    opponent?.opponent_id,
+    sideIndex === 0 ? item?.team1_id : item?.team2_id,
+    sideIndex === 0 ? item?.home_team_id : item?.away_team_id
+  )
+}
+
+const getResultTeamId = (result) => {
+  return getFirstDefined(
+    result?.team_id,
+    result?.opponent_id,
+    result?.participant_id,
+    result?.team?.id,
+    result?.opponent?.id
+  )
+}
+
+const getResultByTeamId = (item, teamId) => {
+  const results = Array.isArray(item?.results) ? item.results : []
+  if (!teamId || results.length === 0) return null
+
+  return results.find((result) => idsMatch(getResultTeamId(result), teamId)) || null
+}
+
+const getRawMatchScoreBySide = (item, sideIndex, teamId) => {
+  const resultById = getResultByTeamId(item, teamId)
+  if (resultById) {
+    return getFirstDefined(resultById?.score, resultById?.value, resultById?.points)
+  }
+
+  return getFirstDefined(
+    item?.results?.[sideIndex]?.score,
+    item?.scores?.[sideIndex],
+    sideIndex === 0 ? item?.team1_score : item?.team2_score,
+    sideIndex === 0 ? item?.home_score : item?.away_score,
+    sideIndex === 0 ? item?.score1 : item?.score2
+  )
+}
+
+const getWinnerSideByPayload = (item, teamAId, teamBId, scoreANumeric, scoreBNumeric) => {
+  const winnerId = getFirstDefined(
+    item?.winner_id,
+    item?.winner_team_id,
+    item?.winning_team_id,
+    item?.winner?.id,
+    item?.winner?.team_id
+  )
+
+  if (idsMatch(winnerId, teamAId)) return 0
+  if (idsMatch(winnerId, teamBId)) return 1
+
+  const results = Array.isArray(item?.results) ? item.results : []
+  const explicitWinner = results.find((result) => result?.is_winner === true || result?.winner === true || result?.won === true)
+  if (explicitWinner) {
+    const explicitWinnerId = getResultTeamId(explicitWinner)
+    if (idsMatch(explicitWinnerId, teamAId)) return 0
+    if (idsMatch(explicitWinnerId, teamBId)) return 1
+  }
+
+  if (scoreANumeric !== null && scoreBNumeric !== null) {
+    if (scoreANumeric > scoreBNumeric) return 0
+    if (scoreBNumeric > scoreANumeric) return 1
+  }
+
+  return null
+}
+
 const parseScoreValue = (value) => {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
@@ -619,11 +712,15 @@ const normalizeBracketMatches = (payload) => {
       })
     }
 
-    const teamA = item.opponents?.[0]?.opponent?.name || item.opponents?.[0]?.name || item.team1?.name || item.home_team?.name || 'TBD'
-    const teamB = item.opponents?.[1]?.opponent?.name || item.opponents?.[1]?.name || item.team2?.name || item.away_team?.name || 'TBD'
+    const teamAData = getOpponentFromMatch(item, 0)
+    const teamBData = getOpponentFromMatch(item, 1)
+    const teamAId = getOpponentIdFromMatch(item, 0)
+    const teamBId = getOpponentIdFromMatch(item, 1)
+    const teamA = teamAData?.name || 'TBD'
+    const teamB = teamBData?.name || 'TBD'
     const statusKey = normalizeStatus(item.status || item.state || 'upcoming')
-    const rawScoreA = getFirstDefined(item.results?.[0]?.score, item.scores?.[0], item.team1_score)
-    const rawScoreB = getFirstDefined(item.results?.[1]?.score, item.scores?.[1], item.team2_score)
+    const rawScoreA = getRawMatchScoreBySide(item, 0, teamAId)
+    const rawScoreB = getRawMatchScoreBySide(item, 1, teamBId)
     const scoreA = formatMatchScore(rawScoreA, statusKey)
     const scoreB = formatMatchScore(rawScoreB, statusKey)
     const matchLabel = getBracketMatchLabel(item)
@@ -631,14 +728,7 @@ const normalizeBracketMatches = (payload) => {
 
     const scoreANumeric = parseScoreValue(rawScoreA)
     const scoreBNumeric = parseScoreValue(rawScoreB)
-
-    const winner = scoreANumeric !== null && scoreBNumeric !== null
-      ? scoreANumeric > scoreBNumeric
-        ? 0
-        : scoreBNumeric > scoreANumeric
-          ? 1
-          : null
-      : null
+    const winner = getWinnerSideByPayload(item, teamAId, teamBId, scoreANumeric, scoreBNumeric)
 
     const liveUrl = getOfficialLiveUrl(item)
     const isLive = statusKey === 'running'

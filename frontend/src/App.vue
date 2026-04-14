@@ -128,7 +128,7 @@ body {
   box-shadow: none;
   filter: none;
   animation: particle-float linear infinite;
-  opacity: 0.42;
+  opacity: 0.32;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -281,14 +281,14 @@ footer {
     opacity: 0.24;
   }
   25% {
-    opacity: 0.82;
+    opacity: 0.62;
   }
   50% {
     transform: translate3d(18px, -26px, 0) rotate(8deg);
     opacity: 0.56;
   }
   75% {
-    opacity: 0.9;
+    opacity: 0.7;
   }
   100% {
     transform: translate3d(-8px, -54px, 0) rotate(-4deg);

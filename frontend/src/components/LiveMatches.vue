@@ -16,7 +16,7 @@
       <p class="empty-hint">Verifique novamente em alguns instantes</p>
     </div>
 
-    <div v-else class="live-grid">
+    <div v-else class="live-grid" :class="liveColumnsClass">
       <div v-for="match in matches" :key="match.id" class="live-card">
         <div class="card-header">
           <span class="live-badge">● EM PROGRESSO</span>
@@ -84,7 +84,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { matchesAPI } from '../api.js'
 import { getCompetitionName, getPhaseName, getTeamName } from '../utils/matchDisplay.js'
@@ -102,6 +102,13 @@ const pageSize = 12
 const teamModalOpen = ref(false)
 const selectedTeam = ref({})
 const isApplyingTeamQuery = ref(false)
+
+const liveColumnsClass = computed(() => {
+  const total = matches.value.length
+  if (total >= 3) return 'live-grid-cols-3'
+  if (total === 2) return 'live-grid-cols-2'
+  return 'live-grid-cols-1'
+})
 
 const normalizeTeamToken = (value) => String(value || '').trim().toLowerCase()
 
@@ -494,8 +501,16 @@ watch(
 
 .live-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+  grid-template-columns: 1fr;
   gap: 28px;
+}
+
+.live-grid.live-grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.live-grid.live-grid-cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .live-card {
@@ -581,11 +596,11 @@ watch(
 }
 
 .card-body {
-  padding: 40px 24px;
+  padding: 20px 16px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  align-items: stretch;
+  gap: 10px;
+  flex-direction: column;
   flex: 1;
   position: relative;
   z-index: 1;
@@ -593,15 +608,14 @@ watch(
 
 .team-section {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-  flex: 1;
-  min-width: 0;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+  gap: 10px;
 }
 
 .team-section.team-2 {
-  flex-direction: column-reverse;
+  flex-direction: row;
 }
 
 .team-logo-btn {
@@ -613,8 +627,8 @@ watch(
 }
 
 .team-logo {
-  width: 100px;
-  height: 100px;
+  width: 60px;
+  height: 60px;
   border-radius: 14px;
   object-fit: contain;
   background: rgb(20 73 67 / 30%);
@@ -623,8 +637,8 @@ watch(
 }
 
 .team-logo-fallback {
-  width: 100px;
-  height: 100px;
+  width: 60px;
+  height: 60px;
   border-radius: 14px;
   display: flex;
   align-items: center;
@@ -642,26 +656,34 @@ watch(
 
 .team-title2,
 .team-title {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   color: #e4e4e7;
-  text-align: center;
+  flex: 1;
   margin: 0;
   line-height: 1.3;
   word-break: break-word;
 }
 
+.team-title {
+  text-align: left;
+}
+
+.team-title2 {
+  text-align: right;
+}
+
 .score-display {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  min-width: 120px;
+  flex-direction: row;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .score-box {
-  width: 100px;
-  height: 100px;
+  width: 80px;
+  height: 80px;
   background: rgba(0, 0, 0, 0.3);
   border: 2px solid rgba(255, 107, 107, 0.3);
   border-radius: 12px;
@@ -694,7 +716,7 @@ watch(
 }
 
 .score-digit {
-  font-size: 48px;
+  font-size: 36px;
   font-weight: 900;
   color: #ff6b6b;
   position: relative;
@@ -702,7 +724,8 @@ watch(
 }
 
 .match-divider {
-  font-size: 24px;
+  font-size: 28px;
+  align-self: center;
   color: rgba(228, 228, 231, 0.3);
   font-weight: bold;
 }
@@ -712,10 +735,9 @@ watch(
   background: rgba(0, 0, 0, 0.2);
   border-top: 1px solid rgba(255, 107, 107, 0.2);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   position: relative;
   z-index: 1;
 }
@@ -747,8 +769,24 @@ watch(
 
 .streams-buttons {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
+  justify-content: flex-start;
+  max-width: 100%;
+  max-height: 70px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.streams-buttons::-webkit-scrollbar {
+  height: 6px;
+}
+
+.streams-buttons::-webkit-scrollbar-thumb {
+  background: rgba(255, 107, 107, 0.45);
+  border-radius: 999px;
 }
 
 .btn-stream {
@@ -764,6 +802,7 @@ watch(
   text-transform: uppercase;
   letter-spacing: 0.03em;
   white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .btn-stream:hover {
@@ -777,7 +816,7 @@ watch(
   font-size: 14px;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1024px) {
   .live-grid {
     grid-template-columns: 1fr;
   }
@@ -786,76 +825,6 @@ watch(
 @media (max-width: 768px) {
   .page-title {
     font-size: 32px;
-  }
-
-  .live-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .card-body {
-    padding: 20px 16px;
-    gap: 10px;
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .team-section,
-  .team-section.team-2 {
-    flex-direction: row;
-    justify-content: space-between;
-    width: 100%;
-    gap: 10px;
-  }
-
-  .team-title2 {
-    text-align: right;
-    flex: 1;
-  }
-  
-  .team-title {
-    text-align: left;
-    flex: 1;
-  }
-
-  .score-display {
-    flex-direction: row;
-    justify-content: center;
-    gap: 10px;
-    min-width: 0;
-  }
-
-  .match-divider {
-    font-size: 28px;
-    align-self: center;
-  }
-
-  .team-logo {
-    width: 60px;
-    height: 60px;
-  }
-
-  .team-title2,
-  .team-title {
-    font-size: 14px;
-  }
-
-  .score-box {
-    width: 80px;
-    height: 80px;
-  }
-
-  .score-digit {
-    font-size: 36px;
-  }
-
-  .card-footer {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-
-  .streams-buttons {
-    justify-content: flex-start;
   }
 }
 
