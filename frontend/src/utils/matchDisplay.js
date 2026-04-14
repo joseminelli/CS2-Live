@@ -82,6 +82,8 @@ const getImportanceTextScore = (text) => {
 }
 
 export const getCompetitionPriority = (match) => {
+  if (!match) return 0
+
   const prizePool = Math.max(
     parseNumeric(match?.prize_pool),
     parseNumeric(match?.tournament?.prize_pool),
@@ -93,23 +95,31 @@ export const getCompetitionPriority = (match) => {
     parseNumeric(match?.teams_count),
     parseNumeric(match?.number_of_teams),
     parseNumeric(match?.tournament?.teams_count),
-    parseNumeric(match?.tournament?.number_of_teams)
+    parseNumeric(match?.tournament?.number_of_teams),
+    parseNumeric(match?.league?.teams_count),
+    parseNumeric(match?.serie?.teams_count)
   )
 
   const tierScore = Math.max(
     getTierScore(match?.tier),
     getTierScore(match?.league?.tier),
     getTierScore(match?.serie?.tier),
-    getTierScore(match?.tournament?.tier)
+    getTierScore(match?.tournament?.tier),
+    getTierScore(match?.serie?.full_name),
+    getTierScore(match?.league?.name)
   )
 
   const textScore = Math.max(
     getImportanceTextScore(match?.league?.name),
     getImportanceTextScore(match?.serie?.full_name || match?.serie?.name),
-    getImportanceTextScore(match?.tournament?.full_name || match?.tournament?.name)
+    getImportanceTextScore(match?.tournament?.full_name || match?.tournament?.name),
+    getImportanceTextScore(match?.competition?.name || '')
   )
 
-  return (tierScore * 1000000) + (teamsCount * 10000) + (prizePool * 10) + textScore
+  // Priorizar por: 1) Tier, 2) Teams, 3) Prize Pool, 4) Text importance
+  const score = (tierScore * 10000000) + (teamsCount * 100000) + (Math.sqrt(prizePool + 1) * 1000) + textScore
+  
+  return score
 }
 
 export const getChampionshipPriority = (championship) => {
