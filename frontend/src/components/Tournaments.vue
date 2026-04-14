@@ -151,39 +151,25 @@
           </div>
 
           <div v-else class="bracket-scroll">
-
-            <div v-if="activeBracketMode === 'group'" class="group-stage-list">
-              <div class="simple-matches-list">
-                <div v-for="match in flatBracketMatches" :key="match.key" class="simple-matchup">
-                  <div class="simple-team">
-                    <span class="team-pill">{{ match.teamA }}</span>
-                    <span class="score-text">{{ match.scoreA || '-' }}</span>
-                  </div>
-                  <div class="vs-badge">vs</div>
-                  <div class="simple-team">
-                    <span class="team-pill">{{ match.teamB }}</span>
-                    <span class="score-text">{{ match.scoreB || '-' }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-else class="bracket-container">
+            <div class="bracket-container">
               <div class="playoff-bracket">
-                <div v-for="section in bracketSections" :key="section.key" class="bracket-round-section">
+                <div v-for="section in displayBracketSections" :key="section.key" class="bracket-round-section">
                   <h4 class="round-section-title">{{ section.title }}</h4>
                   <div class="rounds-flow">
-                    <div v-for="round in section.rounds" :key="round.key" class="round-column">
+                    <div v-for="(round, roundIndex) in section.rounds" :key="round.key" class="round-column"
+                      :style="getRoundColumnStyle(roundIndex)">
                       <div class="flow-round-label">{{ round.label }}</div>
-                      <div v-for="match in round.matches" :key="match.key" class="playoff-matchup">
-                        <div class="team-box" :class="{ winner: match.winner === 0 }">
-                          <span class="team-name-short">{{ match.teamA }}</span>
-                          <span class="team-score-value">{{ match.scoreA || '—' }}</span>
-                        </div>
-                        <div class="divider"></div>
-                        <div class="team-box" :class="{ winner: match.winner === 1 }">
-                          <span class="team-name-short">{{ match.teamB }}</span>
-                          <span class="team-score-value">{{ match.scoreB || '—' }}</span>
+                      <div class="round-match-list">
+                        <div v-for="match in round.matches" :key="match.key" class="playoff-matchup">
+                          <div class="team-box" :class="{ winner: match.winner === 0 }">
+                            <span class="team-name-short">{{ match.teamA }}</span>
+                            <span class="team-score-value">{{ match.scoreA || '—' }}</span>
+                          </div>
+                          <div class="divider"></div>
+                          <div class="team-box" :class="{ winner: match.winner === 1 }">
+                            <span class="team-name-short">{{ match.teamB }}</span>
+                            <span class="team-score-value">{{ match.scoreB || '—' }}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -231,6 +217,9 @@ const activeBracketStage = computed(() => {
 })
 
 const activeBracketMode = computed(() => {
+  const hasBracketRounds = bracketRounds.value.some((round) => /\b(upper|lower|semi|quarter|final|bracket)\b/i.test(round.label || ''))
+  if (hasBracketRounds) return 'playoff'
+
   const label = normalizeText(activeBracketStage.value?.label || selectedChampionship.value?.currentPhase?.phaseName || '')
   if (/(playoff|bracket|upper|lower|semi|quarter|final)/i.test(label)) return 'playoff'
   if (/(group|stage|opening|qualifier)/i.test(label)) return 'group'
@@ -276,6 +265,29 @@ const bracketSections = computed(() => {
 
   return sections
 })
+
+const displayBracketSections = computed(() => {
+  if (activeBracketMode.value === 'playoff' && bracketSections.value.length > 0) {
+    return bracketSections.value
+  }
+
+  if (bracketRounds.value.length === 0) return []
+
+  return [
+    {
+      key: 'group',
+      title: activeBracketStage.value?.label || 'Group Stage',
+      rounds: bracketRounds.value
+    }
+  ]
+})
+
+const getRoundColumnStyle = (roundIndex) => {
+  return {
+    '--round-offset': `${roundIndex * 24}px`,
+    '--round-gap': `${Math.min(26 + (roundIndex * 14), 72)}px`
+  }
+}
 
 const statusFilters = [
   { key: 'all', label: 'Todos' },
@@ -445,6 +457,23 @@ const getRoundLabel = (item) => {
   return splitBracketLabel(label).title
 }
 
+const normalizeRoundLabel = (label) => {
+  const text = normalizeText(label)
+  if (!text) return 'Round'
+
+  return text
+    .replace(/\s+#?\d+$/i, '')
+    .replace(/\s+(\d+)(st|nd|rd|th)$/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+const getRoundSequence = (item) => {
+  const raw = normalizeText(item.round_name || item.round?.name || item.round || item.stage || item.label || item.name || '')
+  const match = raw.match(/(?:\s|#)(\d+)$/)
+  return match ? Number(match[1]) : Number(item.number || 0) || 0
+}
+
 const getRoundSide = (item) => {
   const label = item.round_name || item.round?.name || item.round || item.stage || item.label || item.name || ''
   return getBracketSide(label)
@@ -453,12 +482,15 @@ const getRoundSide = (item) => {
 const getRoundSortValue = (item) => {
   const candidate = item.round_number ?? item.round ?? item.number
   if (Number.isFinite(Number(candidate))) return Number(candidate)
-  const label = String(getRoundLabel(item)).toLowerCase()
-  if (label.includes('grand final')) return 999
-  if (label.includes('semi')) return 80
-  if (label.includes('quarter')) return 60
-  if (label.includes('playoff')) return 40
-  if (label.includes('group')) return 20
+  const label = String(item.normalizedRoundLabel || getRoundLabel(item)).toLowerCase()
+  if (label.includes('round of 32')) return 10
+  if (label.includes('round of 16') || label.includes('octa')) return 20
+  if (label.includes('quarter')) return 30
+  if (label.includes('semi')) return 40
+  if (label.includes('final') && !label.includes('grand')) return 50
+  if (label.includes('grand final')) return 60
+  if (label.includes('playoff')) return 25
+  if (label.includes('group')) return 5
   return 1000
 }
 
@@ -470,16 +502,20 @@ const normalizeBracketMatches = (payload) => {
   const rounds = new Map()
 
   items.forEach((item, index) => {
-    const roundLabel = getRoundLabel(item)
-    const roundOrder = getBracketDepth(item, lookup, depthCache)
-    const roundKey = `${roundOrder}-${roundLabel}`
+    const rawRoundLabel = getRoundLabel(item)
+    const roundLabel = normalizeRoundLabel(rawRoundLabel)
+    const depthOrder = getBracketDepth(item, lookup, depthCache)
+    const semanticOrder = getRoundSortValue({ ...item, normalizedRoundLabel: roundLabel })
+    const roundOrder = semanticOrder === 1000 ? depthOrder : semanticOrder
+    const roundSide = getRoundSide(item)
+    const roundKey = `${roundSide}-${roundOrder}-${roundLabel}`
 
     if (!rounds.has(roundKey)) {
       rounds.set(roundKey, {
         key: roundKey,
         label: roundLabel,
         order: roundOrder,
-        side: getRoundSide(item),
+        side: roundSide,
         matches: []
       })
     }
@@ -508,6 +544,7 @@ const normalizeBracketMatches = (payload) => {
       scoreA,
       scoreB,
       winner,
+      sequence: getRoundSequence(item),
       stageLabel: roundLabel,
       matchTitle: matchLabel.title,
       matchSubtitle: matchupLabel,
@@ -518,10 +555,14 @@ const normalizeBracketMatches = (payload) => {
   })
 
   return Array.from(rounds.values())
-    .sort((a, b) => a.order - b.order)
+    .sort((a, b) => a.order - b.order || String(a.label).localeCompare(String(b.label)))
     .map((round) => ({
       ...round,
-      matches: round.matches.sort((a, b) => String(a.key).localeCompare(String(b.key)))
+      matches: round.matches.sort((a, b) => {
+        const seqDiff = (a.sequence || 0) - (b.sequence || 0)
+        if (seqDiff !== 0) return seqDiff
+        return String(a.key).localeCompare(String(b.key))
+      })
     }))
 }
 
@@ -1234,61 +1275,6 @@ watch(
   color: #7afce5;
 }
 
-.simple-matches-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.simple-matchup {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(67, 203, 156, 0.15);
-  background: rgba(67, 203, 156, 0.04);
-  transition: all 0.2s ease;
-}
-
-.simple-matchup:hover {
-  background: rgba(67, 203, 156, 0.08);
-  border-color: rgba(67, 203, 156, 0.3);
-}
-
-.simple-team {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.team-pill {
-  font-size: 14px;
-  font-weight: 700;
-  color: #dffaf4;
-  text-align: center;
-  max-width: 150px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.score-text {
-  font-size: 18px;
-  font-weight: 900;
-  color: #7afce5;
-}
-
-.vs-badge {
-  font-size: 11px;
-  font-weight: 700;
-  color: rgba(228, 228, 231, 0.5);
-  text-transform: uppercase;
-}
-
 .playoff-bracket {
   display: flex;
   flex-direction: column;
@@ -1313,9 +1299,9 @@ watch(
 
 .rounds-flow {
   display: flex;
-  gap: 18px;
+  gap: 30px;
   overflow-x: auto;
-  padding-bottom: 8px;
+  padding: 10px 10px 12px 0;
 }
 
 .round-column {
@@ -1323,12 +1309,39 @@ watch(
   min-width: 220px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  position: relative;
+  margin-top: var(--round-offset, 0px);
+  justify-content: center;
+}
+
+.round-column:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  right: -22px;
+  top: 36px;
+  width: 22px;
+  height: 2px;
+  background: rgba(67, 203, 156, 0.28);
+}
+
+.round-column:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: -22px;
+  top: 36px;
+  width: 22px;
+  height: calc(100% - 72px);
+  border-right: 2px solid rgba(67, 203, 156, 0.22);
+  border-bottom: 2px solid rgba(67, 203, 156, 0.22);
+  border-bottom-right-radius: 12px;
+  pointer-events: none;
 }
 
 .flow-round-label {
   font-size: 12px;
   font-weight: 800;
+  text-align: center;
   color: rgba(228, 228, 231, 0.7);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1336,12 +1349,19 @@ watch(
   border-bottom: 1px solid rgba(67, 203, 156, 0.1);
 }
 
+.round-match-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--round-gap, 28px);
+}
+
 .playoff-matchup {
   border: 1px solid rgba(67, 203, 156, 0.2);
   border-radius: 10px;
-  background: rgba(6, 14, 12, 0.6);
+  background: linear-gradient(180deg, rgba(5, 15, 13, 0.78), rgba(2, 9, 8, 0.9));
   overflow: hidden;
   transition: all 0.2s ease;
+  min-height: 82px;
 }
 
 .playoff-matchup:hover {
@@ -1350,13 +1370,13 @@ watch(
 }
 
 .team-box {
-  padding: 12px;
+  padding: 12px 10px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 6px;
   text-align: center;
   border-bottom: 1px solid rgba(67, 203, 156, 0.1);
+    justify-content: space-around;
 }
 
 .team-box:last-child {
@@ -1370,6 +1390,7 @@ watch(
 .team-name-short {
   font-size: 13px;
   font-weight: 700;
+    width: 100px;
   color: #e0f2f0;
   line-height: 1.3;
   word-break: break-word;
@@ -1386,99 +1407,10 @@ watch(
 }
 
 .divider {
-  height: 4px;
+  height: 2px;
   background: linear-gradient(90deg, transparent, rgba(67, 203, 156, 0.15), transparent);
 }
 
-
-.bracket-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  padding: 14px 22px;
-  border-bottom: 1px solid rgba(67, 203, 156, 0.12);
-  background: linear-gradient(180deg, rgba(8, 22, 18, 0.5), rgba(3, 10, 8, 0.2));
-}
-
-.bracket-stage-tabs {
-  display: flex;
-  gap: 10px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding: 14px 22px 0;
-}
-
-.stage-tab {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  min-width: 180px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(67, 203, 156, 0.18);
-  background: rgba(6, 14, 12, 0.72);
-  color: #eaf6f2;
-  cursor: pointer;
-  transition: all 0.22s ease;
-}
-
-.stage-tab:hover {
-  border-color: rgba(67, 203, 156, 0.38);
-  transform: translateY(-1px);
-}
-
-.stage-tab.active {
-  background: linear-gradient(180deg, rgba(67, 203, 156, 0.2), rgba(6, 14, 12, 0.9));
-  border-color: rgba(67, 203, 156, 0.7);
-  box-shadow: 0 0 20px rgba(67, 203, 156, 0.18);
-}
-
-.stage-tab-label {
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0.02em;
-}
-
-.stage-tab-status {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(201, 240, 230, 0.72);
-}
-
-.summary-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(6, 14, 12, 0.72);
-  border: 1px solid rgba(67, 203, 156, 0.14);
-}
-
-.summary-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: rgba(197, 233, 225, 0.68);
-}
-
-.summary-value {
-  font-size: 13px;
-  color: #edf7f4;
-  line-height: 1.2;
-}
-
-.modal-kicker {
-  display: inline-block;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: rgba(200, 243, 235, 0.7);
-  margin-bottom: 4px;
-}
 
 .modal-title {
   margin: 0;
@@ -1491,18 +1423,6 @@ watch(
   margin: 6px 0 0;
   color: rgba(191, 227, 218, 0.72);
   font-size: 13px;
-}
-
-.close-btn {
-  border: 1px solid rgba(67, 203, 156, 0.3);
-  background: rgba(67, 203, 156, 0.1);
-  color: #dff8f0;
-  border-radius: 999px;
-  padding: 10px 14px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  cursor: pointer;
 }
 
 .bracket-loading,
@@ -1539,9 +1459,7 @@ watch(
 }
 
 .group-stage-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: none;
 }
 
 .stage-match-row {
@@ -1994,65 +1912,9 @@ watch(
     flex-direction: column;
   }
 
-  .bracket-stage-tabs {
-    padding: 12px 16px 0;
-  }
-
-  .stage-tab {
-    min-width: 160px;
-  }
-
-  .bracket-columns {
-    grid-auto-columns: minmax(260px, 1fr);
-  }
-
-  .bracket-section {
-    padding: 16px;
-  }
-
-  .bracket-section-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .bracket-section-header h4 {
-    font-size: 20px;
-  }
-
-  .bracket-rounds {
-    gap: 24px;
-  }
-
-  .bracket-round {
-    min-width: 240px;
-  }
-
-  .matchup-team {
-    padding: 12px 14px;
-  }
-
-  .team-badge {
-    width: 48px;
-    height: 48px;
-  }
-
-  .team-name {
-    font-size: 13px;
-  }
-
-  .bracket-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .bracket-section-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .bracket-modal {
-    margin-top: -10px;
     width: calc(100vw - 12px);
-    max-height: 80vh;
+    max-height: 85vh;
   }
 
   .bracket-modal-header {
@@ -2083,26 +1945,18 @@ watch(
     font-size: 11px;
   }
 
-  .simple-matchup {
-    padding: 12px;
-    gap: 12px;
-  }
-
-  .team-pill {
-    font-size: 12px;
-    max-width: 100px;
-  }
-
-  .score-text {
-    font-size: 16px;
-  }
-
   .bracket-scroll {
     padding: 12px 14px 16px;
   }
 
   .round-column {
     min-width: 180px;
+    margin-top: 0;
+  }
+
+  .round-column:not(:last-child)::before,
+  .round-column:not(:last-child)::after {
+    display: none;
   }
 
   .team-box {
@@ -2142,11 +1996,6 @@ watch(
 
   .round-column {
     min-width: 150px;
-  }
-
-  .team-pill {
-    font-size: 11px;
-    max-width: 90px;
   }
 }
 
