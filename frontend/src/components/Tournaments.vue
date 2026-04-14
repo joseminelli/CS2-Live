@@ -1818,8 +1818,31 @@ watch(
     font-size: 34px;
   }
 
+  .controls {
+    gap: 10px;
+  }
+
+  .filters-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .filter-select,
+  .search-input {
+    height: 44px;
+    font-size: 13px;
+  }
+
   .header-content {
+    flex-direction: column;
     align-items: flex-start;
+    gap: 12px;
+  }
+
+  .header-side {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .phase-item {
@@ -1896,6 +1919,28 @@ watch(
 }
 
 @media (max-width: 640px) {
+  .page-title {
+    font-size: 28px;
+  }
+
+  .page-subtitle,
+  .search-context {
+    font-size: 12px;
+  }
+
+  .card-header {
+    padding: 14px;
+  }
+
+  .card-content {
+    padding: 0 14px 14px;
+    gap: 12px;
+  }
+
+  .tournament-name {
+    font-size: 17px;
+  }
+
   .bracket-summary {
     grid-template-columns: 1fr;
   }

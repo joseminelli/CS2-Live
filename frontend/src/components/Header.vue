@@ -4,8 +4,8 @@
       <div class="header-top">
         <div class="logo-section">
           <div class="logo">
-            <span class="logo-icon">⚡</span>
-            <span class="logo-text">CS2 TRACKER</span>
+            <img src="/Cs2live.png" alt="CS2 Live Logo" class="logo-icon">
+            <span class="logo-text">CS2 Live</span>
           </div>
           <span class="status-badge" :class="{ online: isOnline }">
             {{ isOnline ? '● ONLINE' : '● OFFLINE' }}
@@ -123,9 +123,10 @@ onMounted(async () => {
 }
 
 .logo-icon {
-  font-size: 36px;
-  display: flex;
-  align-items: center;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .logo-text {

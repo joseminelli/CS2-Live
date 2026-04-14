@@ -87,9 +87,21 @@ footer {
   z-index: 1;
 }
 
+@media (max-width: 1024px) {
+  .main-content {
+    padding: 128px 20px 110px;
+  }
+}
+
 @media (max-width: 768px) {
   .main-content {
-    padding: 120px 16px 40px;
+    padding: 108px 14px 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    padding: 96px 10px 92px;
   }
 }
 </style>

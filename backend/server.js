@@ -224,11 +224,12 @@ app.get('/api/matches/upcoming', async (req, res) => {
 // Dashboard summary
 app.get('/api/dashboard', async (req, res) => {
   try {
-    const [live, upcoming, recent, teamsList] = await Promise.all([
+    const [live, upcoming, recent, teamsList, tournamentsList] = await Promise.all([
       cachedPandaResponse('/csgo/matches/running', { per_page: 3, page: 1 }, CACHE_TTL_FAST_MS),
       cachedPandaResponse('/csgo/matches/upcoming', { per_page: 5, page: 1, sort: 'scheduled_at' }, CACHE_TTL_DEFAULT_MS),
       cachedPandaResponse('/csgo/matches/past', { per_page: 5, page: 1, sort: '-scheduled_at' }, CACHE_TTL_DEFAULT_MS),
-      cachedPandaResponse('/csgo/teams', { per_page: 8, page: 1, sort: 'name' }, CACHE_TTL_SLOW_MS)
+      cachedPandaResponse('/csgo/teams', { per_page: 8, page: 1, sort: 'name' }, CACHE_TTL_SLOW_MS),
+      cachedPandaResponse('/csgo/tournaments', { per_page: 1, page: 1 }, CACHE_TTL_DEFAULT_MS)
     ]);
 
     res.json({
@@ -239,7 +240,9 @@ app.get('/api/dashboard', async (req, res) => {
       recentMatches: Array.isArray(recent.data) ? recent.data : [],
       recentCount: parseHeaderTotal(recent.headers, Array.isArray(recent.data) ? recent.data.length : 0),
       teams: Array.isArray(teamsList.data) ? teamsList.data : [],
-      teamCount: parseHeaderTotal(teamsList.headers, Array.isArray(teamsList.data) ? teamsList.data.length : 0)
+      teamCount: parseHeaderTotal(teamsList.headers, Array.isArray(teamsList.data) ? teamsList.data.length : 0),
+      tournaments: Array.isArray(tournamentsList.data) ? tournamentsList.data : [],
+      tournamentCount: parseHeaderTotal(tournamentsList.headers, Array.isArray(tournamentsList.data) ? tournamentsList.data.length : 0)
     });
   } catch (error) {
     console.error('Error fetching dashboard summary:', error.message);

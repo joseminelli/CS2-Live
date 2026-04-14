@@ -631,7 +631,34 @@ watch(
   
   .card-body {
     padding: 20px 16px;
-    gap: 12px;
+    gap: 10px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .team-section,
+  .team-section.team-2 {
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .team-title {
+    text-align: left;
+    flex: 1;
+  }
+
+  .score-display {
+    flex-direction: row;
+    justify-content: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .match-divider {
+    font-size: 28px;
+    align-self: center;
   }
   
   .team-logo {
@@ -650,6 +677,49 @@ watch(
   
   .score-digit {
     font-size: 36px;
+  }
+
+  .card-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .streams-buttons {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 26px;
+  }
+
+  .page-subtitle {
+    font-size: 14px;
+  }
+
+  .live-card {
+    padding: 10px;
+  }
+
+  .card-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .live-badge {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  .score-box {
+    width: 62px;
+    height: 62px;
+  }
+
+  .score-digit {
+    font-size: 28px;
   }
 }
 </style>

@@ -3,8 +3,7 @@
     <header class="navbar-shell" :class="{ scrolled: isScrolled }">
       <div class="navbar-inner">
         <button @click="selectView('dashboard')" class="brand" aria-label="Ir para dashboard">
-          <span class="brand-icon">⚡</span>
-          <span class="brand-text">CS2 TRACKER</span>
+          <img src="/Cs2liveCut.png" alt="CS2 Live Logo" class="brand-icon">
         </button>
 
         <nav class="desktop-nav" aria-label="Navegacao principal">
@@ -21,57 +20,46 @@
           </button>
         </nav>
 
-        <button
-          class="mobile-toggle"
-          @click="isMobileMenuOpen = !isMobileMenuOpen"
-          :aria-label="isMobileMenuOpen ? 'Fechar menu' : 'Abrir menu'"
-          :aria-expanded="isMobileMenuOpen"
-        >
-          <svg v-if="!isMobileMenuOpen" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <div class="mobile-header-chip">
+          <span class="chip-dot" />
+          <span class="chip-label">{{ activeLabel }}</span>
+        </div>
       </div>
     </header>
 
-    <Transition name="mobile-slide">
-      <div v-if="isMobileMenuOpen" class="mobile-panel" @click.self="isMobileMenuOpen = false">
-        <div class="mobile-list">
-          <button
-            v-for="item in navItems"
-            :key="item.id"
-            @click="selectView(item.id)"
-            class="mobile-item"
-            :class="{ active: activeView === item.id }"
-          >
-            {{ item.label }}
-          </button>
-        </div>
-      </div>
-    </Transition>
+    <nav class="mobile-dock" aria-label="Navegacao mobile">
+      <button
+        v-for="item in navItems"
+        :key="item.id"
+        @click="selectView(item.id)"
+        class="dock-item"
+        :class="{ active: activeView === item.id }"
+      >
+        <span class="dock-icon">{{ item.icon }}</span>
+        <span class="dock-label">{{ item.mobileLabel || item.label }}</span>
+      </button>
+    </nav>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const isScrolled = ref(false)
-const isMobileMenuOpen = ref(false)
 const activeView = ref('dashboard')
 const route = useRoute()
 const router = useRouter()
 
 const navItems = [
-  { id: 'dashboard', label: 'Inicio' },
-  { id: 'live', label: 'Ao Vivo' },
-  { id: 'upcoming', label: 'Próximos' },
-  { id: 'recent', label: 'Resultados' },
-  { id: 'tournaments', label: 'Torneios' }
+  { id: 'dashboard', label: 'Inicio', mobileLabel: 'Home', icon: '🏠' },
+  { id: 'live', label: 'Ao Vivo', mobileLabel: 'Live', icon: '🔴' },
+  { id: 'upcoming', label: 'Próximos', mobileLabel: 'Prox', icon: '📅' },
+  { id: 'recent', label: 'Resultados', mobileLabel: 'Recentes', icon: '📊' },
+  { id: 'tournaments', label: 'Torneios', mobileLabel: 'Torneios', icon: '🏆' }
 ]
+
+const activeLabel = computed(() => navItems.find((item) => item.id === activeView.value)?.label || 'Inicio')
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 10
@@ -79,17 +67,10 @@ const handleScroll = () => {
 
 const selectView = async (viewId) => {
   activeView.value = viewId
-  isMobileMenuOpen.value = false
   if (route.name !== viewId) {
     await router.push({ name: viewId })
   }
 }
-
-watch(isMobileMenuOpen, (val) => {
-  if (typeof document !== 'undefined') {
-    document.body.style.overflow = val ? 'hidden' : ''
-  }
-})
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
@@ -106,9 +87,6 @@ watch(
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
-  if (typeof document !== 'undefined') {
-    document.body.style.overflow = ''
-  }
 })
 </script>
 
@@ -146,7 +124,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 18px;
+  padding: 0 20px;
   gap: 12px;
 }
 
@@ -161,15 +139,11 @@ onUnmounted(() => {
 }
 
 .brand-icon {
-  width: 40px;
+  width: 80px;
   height: 40px;
-  border-radius: 9px;
-  display: grid;
-  place-items: center;
-  color: #00110d;
-  font-weight: 700;
-  background: radial-gradient(circle at 30% 30%, #7cffdb 0%, #36dfbf 55%, #0fb59c 100%);
-  box-shadow: 0 0 14px rgba(64, 224, 208, 0.48);
+  border-radius: 8px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .brand-text {
@@ -236,60 +210,33 @@ onUnmounted(() => {
 
 .mobile-toggle {
   display: none;
-  border: 0;
-  background: transparent;
-  color: #ecfbf8;
-  cursor: pointer;
 }
 
-.mobile-panel {
-  position: fixed;
-  inset: 0;
-  top: 82px;
-  z-index: 45;
-  background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(8px);
-}
-
-.mobile-list {
-  margin: 10px auto 0;
-  width: min(92vw, 640px);
-  border: 1px solid rgba(64, 224, 208, 0.2);
-  border-radius: 14px;
-  padding: 10px;
-  background: rgba(2, 10, 9, 0.9);
-}
-
-.mobile-item {
-  width: 100%;
-  text-align: left;
-  border: 1px solid rgba(64, 224, 208, 0.15);
-  background: transparent;
-  color: #f1f9f7;
-  border-radius: 10px;
-  padding: 12px;
-  margin-bottom: 8px;
+.mobile-header-chip {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 7px 12px;
+  border: 1px solid rgba(64, 224, 208, 0.28);
+  background: rgba(64, 224, 208, 0.08);
+  color: #cbf8f2;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  cursor: pointer;
+  letter-spacing: 0.06em;
 }
 
-.mobile-item.active,
-.mobile-item:hover {
-  color: #40e0d0;
-  border-color: rgba(64, 224, 208, 0.45);
-  background: rgba(64, 224, 208, 0.08);
+.chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #52efd7;
+  box-shadow: 0 0 12px rgba(82, 239, 215, 0.65);
 }
 
-.mobile-slide-enter-active,
-.mobile-slide-leave-active {
-  transition: opacity 240ms ease;
-}
-
-.mobile-slide-enter-from,
-.mobile-slide-leave-to {
-  opacity: 0;
+.mobile-dock {
+  display: none;
 }
 
 @keyframes navbar-enter {
@@ -304,30 +251,123 @@ onUnmounted(() => {
 }
 
 @media (max-width: 1024px) {
+  .navbar-shell {
+    top: 10px;
+    width: calc(100vw - 18px);
+  }
+
+  .navbar-inner {
+    height: 68px;
+    padding: 0 12px;
+  }
+
   .desktop-nav {
     display: none;
   }
 
-  .mobile-toggle {
-    display: inline-grid;
-    place-items: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+  .mobile-header-chip {
+    display: inline-flex;
   }
 
-  .mobile-toggle:hover {
-    background: rgba(64, 224, 208, 0.1);
+  .mobile-dock {
+    position: fixed;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    width: min(96vw, 760px);
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    padding: 10px;
+    border-radius: 18px;
+    border: 1px solid rgba(64, 224, 208, 0.3);
+    background: linear-gradient(180deg, rgba(1, 10, 8, 0.95) 0%, rgba(1, 8, 7, 0.9) 100%);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(64, 224, 208, 0.12);
+    z-index: 52;
+  }
+
+  .dock-item {
+    border: 1px solid rgba(64, 224, 208, 0.12);
+    border-radius: 12px;
+    background: rgba(64, 224, 208, 0.02);
+    color: #e8f8f5;
+    min-height: 54px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 180ms ease;
+  }
+
+  .dock-icon {
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .dock-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .dock-item.active {
+    border-color: rgba(64, 224, 208, 0.62);
+    background: linear-gradient(180deg, rgba(64, 224, 208, 0.22) 0%, rgba(64, 224, 208, 0.12) 100%);
+    color: #7afce5;
+    box-shadow: 0 0 16px rgba(64, 224, 208, 0.3);
+    transform: translateY(-2px);
+  }
+
+  .dock-item:active {
+    transform: translateY(0);
   }
 }
 
 @media (max-width: 640px) {
+  .navbar-shell {
+    top: 8px;
+    width: calc(100vw - 12px);
+    border-radius: 12px;
+  }
+
   .brand-text {
     display: none;
   }
 
   .navbar-inner {
-    height: 62px;
+    height: 60px;
+    padding: 0 10px;
+  }
+
+  .mobile-header-chip {
+    padding: 6px 10px;
+    font-size: 10px;
+  }
+
+  .mobile-dock {
+    bottom: 10px;
+    width: calc(100vw - 10px);
+    padding: 8px;
+    gap: 6px;
+    border-radius: 14px;
+  }
+
+  .dock-item {
+    min-height: 50px;
+    border-radius: 10px;
+  }
+
+  .dock-icon {
+    font-size: 15px;
+  }
+
+  .dock-label {
+    font-size: 9px;
   }
 }
 </style>

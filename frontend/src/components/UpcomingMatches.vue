@@ -718,10 +718,87 @@ watch(
   .filters-grid {
     grid-template-columns: 1fr;
     align-items: stretch;
+    gap: 10px;
+  }
+
+  .filters-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
   
   .card-content {
     padding: 16px;
+  }
+
+  .card-top,
+  .card-bottom {
+    padding: 10px 14px;
+  }
+
+  .team-logo,
+  .team-logo-fallback {
+    width: 62px;
+    height: 62px;
+  }
+
+  .team-name {
+    max-width: 110px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 26px;
+  }
+
+  .page-subtitle {
+    font-size: 14px;
+  }
+
+  .filters-panel {
+    padding: 14px;
+  }
+
+  .matches-container {
+    gap: 12px;
+  }
+
+  .card-content {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .team-info,
+  .team-info.team-right {
+    flex-direction: row;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .team-name {
+    max-width: 130px;
+    text-align: left;
+  }
+
+  .match-center {
+    gap: 6px;
+  }
+
+  .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .card-bottom {
+    justify-content: stretch;
   }
 }
 </style>

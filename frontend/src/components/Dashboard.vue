@@ -709,15 +709,74 @@ onMounted(async () => {
 @media (max-width: 768px) {
   .dashboard-header {
     flex-direction: column;
+    gap: 12px;
   }
   
   .stats-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .stat-card {
+    padding: 18px;
+  }
+
+  .stat-value {
+    font-size: 42px;
+  }
+
+  .section-header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .section-action {
+    margin-left: 0;
   }
   
   .upcoming-item {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .upcoming-match {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 4px;
+  }
+
+  .matches-grid {
+    gap: 14px;
+  }
+
+  .live-match-card {
+    padding: 14px;
+  }
+
+  .match-content {
+    padding-top: 28px;
+    align-items: stretch;
+  }
+
+  .score {
+    font-size: 34px;
+    min-width: 38px;
+  }
+
+  .divider {
+    font-size: 28px;
+  }
+
+  .team-logo,
+  .team-logo-fallback {
+    width: 62px;
+    height: 62px;
+  }
+
+  .team-name {
+    font-size: 14px;
+    max-width: 110px;
   }
   
   .page-title {
@@ -726,6 +785,30 @@ onMounted(async () => {
   
   .section-title {
     font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard {
+    gap: 28px;
+  }
+
+  .page-title {
+    font-size: 24px;
+  }
+
+  .page-subtitle {
+    font-size: 14px;
+  }
+
+  .refresh-indicator {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .match-status {
+    font-size: 10px;
+    padding: 4px 8px;
   }
 }
 </style>

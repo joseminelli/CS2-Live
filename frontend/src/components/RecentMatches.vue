@@ -824,27 +824,55 @@ watch(
     font-size: 32px;
   }
 
+  .filters-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .filters-grid {
     grid-template-columns: 1fr;
     align-items: stretch;
+    gap: 10px;
   }
   
   .controls {
     gap: 12px;
   }
+
+  .matches-container {
+    grid-template-columns: 1fr;
+  }
   
   .card-content {
     padding: 16px;
     gap: 12px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .team-section,
+  .team-section.team-right {
+    flex-direction: row;
+    justify-content: center;
+    gap: 10px;
   }
   
-  .team-logo {
+  .team-logo,
+  .team-logo-fallback {
     width: 60px;
     height: 60px;
   }
   
   .team-name {
     font-size: 14px;
+    text-align: left;
+    max-width: 130px;
   }
   
   .score-box {
@@ -854,6 +882,47 @@ watch(
   
   .score-digit {
     font-size: 36px;
+  }
+
+  .card-top,
+  .card-bottom {
+    padding: 10px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 26px;
+  }
+
+  .page-subtitle {
+    font-size: 14px;
+  }
+
+  .filters-panel {
+    padding: 14px;
+  }
+
+  .matches-container {
+    gap: 12px;
+  }
+
+  .score-box {
+    width: 62px;
+    height: 62px;
+  }
+
+  .score-digit {
+    font-size: 28px;
+  }
+
+  .card-bottom {
+    justify-content: flex-start;
+  }
+
+  .btn-watch {
+    width: 100%;
+    text-align: center;
   }
 }
 </style>

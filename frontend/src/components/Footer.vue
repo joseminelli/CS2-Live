@@ -23,7 +23,7 @@
     </div>
     
     <div class="footer-bottom">
-      <p>&copy; 2024 CS2 Tracker. Desenvolvido com ❤️ para a comunidade de esports.</p>
+      <p>&copy; 2026 CS2 Live. Desenvolvido com ❤️ para a comunidade de esports.</p>
       <p class="system-status">SYSTEM_STATUS: ONLINE | VERSION: 1.0</p>
     </div>
   </footer>
@@ -94,21 +94,36 @@ import { RouterLink } from 'vue-router'
   text-align: center;
   font-size: 14px;
   color: rgba(228, 228, 231, 0.5);
+  word-break: break-word;
 }
 
 .system-status {
   font-family: 'Courier New', monospace;
   margin-top: 10px;
   color: rgba(64, 224, 208, 0.6);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 768px) {
   .footer {
-    padding: 40px 20px 20px;
+    padding: 36px 14px 20px;
+    margin-top: 60px;
   }
   
   .footer-content {
-    gap: 30px;
+    gap: 24px;
+    grid-template-columns: 1fr;
+    margin-bottom: 24px;
+  }
+
+  .footer-bottom {
+    padding-top: 20px;
+    font-size: 12px;
+  }
+
+  .system-status {
+    font-size: 11px;
   }
 }
 </style>
