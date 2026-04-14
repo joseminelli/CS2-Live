@@ -38,11 +38,11 @@
 
           <div class="score-display">
             <div class="score-box">
-              <span class="score-digit">{{ match.results[0]?.score || '0' }}</span>
+              <span class="score-digit">{{ getCurrentMapScore(match, 0) }}</span>
             </div>
             <div class="match-divider">:</div>
             <div class="score-box">
-              <span class="score-digit">{{ match.results[1]?.score || '0' }}</span>
+              <span class="score-digit">{{ getCurrentMapScore(match, 1) }}</span>
             </div>
           </div>
 
@@ -57,8 +57,8 @@
         </div>
 
         <div class="card-footer">
-          <span v-if="match.games_attributes" class="match-info">
-            Map {{ getRoundNumber(match) }}
+          <span v-if="hasGameDetails(match)" class="match-info">
+            Mapa atual {{ getCurrentMapNumber(match) }}
           </span>
           <div v-if="match.streams_list && match.streams_list.length > 0" class="streams-buttons">
             <button v-for="(stream, index) in match.streams_list" :key="index" @click="openStream(stream)"
@@ -159,11 +159,58 @@ const openTeamModal = async (team, syncUrl = true) => {
   }
 }
 
-const getRoundNumber = (match) => {
-  if (match.games_attributes && match.games_attributes.length > 0) {
-    return match.games_attributes.filter(g => g.finished).length + 1
+const getFirstDefined = (...values) => values.find((value) => value !== null && value !== undefined && value !== '')
+
+const parseScoreValue = (value) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? String(parsed) : null
+}
+
+const getGameStatus = (game) => String(game?.status || game?.state || '').toLowerCase()
+
+const getCurrentMapGame = (match) => {
+  const games = Array.isArray(match?.games_attributes) ? match.games_attributes : []
+  if (games.length === 0) return null
+
+  return games.find((game) => ['running', 'ongoing', 'in_progress', 'live'].includes(getGameStatus(game)))
+    || games.find((game) => game && game.finished !== true && !['finished', 'complete', 'completed'].includes(getGameStatus(game)))
+    || games[games.length - 1]
+}
+
+const hasGameDetails = (match) => Array.isArray(match?.games_attributes) && match.games_attributes.length > 0
+
+const getCurrentMapNumber = (match) => {
+  const currentGame = getCurrentMapGame(match)
+  if (currentGame) {
+    const candidate = getFirstDefined(currentGame.number, currentGame.game_number, currentGame.round_number, currentGame.round)
+    const parsed = Number(candidate)
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
   }
+
+  if (Array.isArray(match?.games_attributes) && match.games_attributes.length > 0) {
+    return match.games_attributes.filter((game) => game?.finished).length + 1
+  }
+
   return 1
+}
+
+const getCurrentMapScore = (match, sideIndex) => {
+  const currentGame = getCurrentMapGame(match)
+  if (currentGame) {
+    const rawScore = getFirstDefined(
+      currentGame?.results?.[sideIndex]?.score,
+      currentGame?.scores?.[sideIndex],
+      sideIndex === 0 ? currentGame?.team1_score : currentGame?.team2_score,
+      sideIndex === 0 ? currentGame?.home_score : currentGame?.away_score,
+      sideIndex === 0 ? currentGame?.score1 : currentGame?.score2
+    )
+
+    const score = parseScoreValue(rawScore)
+    return score ?? '0'
+  }
+
+  const seriesScore = parseScoreValue(match?.results?.[sideIndex]?.score)
+  return seriesScore ?? '0'
 }
 
 const getCompetition = (match) => {
@@ -570,9 +617,8 @@ watch(
   height: 100px;
   border-radius: 14px;
   object-fit: contain;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgb(20 73 67 / 30%);
   padding: 8px;
-  border: 2px solid rgba(255, 107, 107, 0.2);
   transition: all 0.3s ease;
 }
 

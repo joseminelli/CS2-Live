@@ -520,7 +520,7 @@ onMounted(async () => {
   height: 90px;
   border-radius: 10px;
   object-fit: contain;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgb(20 73 67 / 30%);
   padding: 6px;
   border: 1px solid rgba(64, 224, 208, 0.15);
 }
