@@ -101,11 +101,62 @@ const hasNextPage = ref(false)
 const pageSize = 12
 const teamModalOpen = ref(false)
 const selectedTeam = ref({})
+const isApplyingTeamQuery = ref(false)
 
-const openTeamModal = (team) => {
+const normalizeTeamToken = (value) => String(value || '').trim().toLowerCase()
+
+const getTeamQueryToken = (team) => {
+  if (team?.id != null) return String(team.id)
+  if (team?.slug) return String(team.slug)
+  if (team?.name) return String(team.name)
+  return ''
+}
+
+const findTeamByToken = (token) => {
+  const normalized = normalizeTeamToken(token)
+  if (!normalized) return null
+
+  for (const match of matches.value) {
+    const opponents = Array.isArray(match?.opponents) ? match.opponents : []
+    for (const item of opponents) {
+      const team = item?.opponent || item
+      if (!team) continue
+
+      const byId = team.id != null && String(team.id) === normalized
+      const bySlug = normalizeTeamToken(team.slug) === normalized
+      const byName = normalizeTeamToken(team.name) === normalized
+
+      if (byId || bySlug || byName) {
+        return team
+      }
+    }
+  }
+
+  return null
+}
+
+const syncTeamQuery = async (team) => {
+  const token = getTeamQueryToken(team)
+  const nextQuery = { ...route.query }
+
+  if (!token) {
+    delete nextQuery.team
+  } else {
+    nextQuery.team = token
+  }
+
+  if (JSON.stringify(nextQuery) === JSON.stringify(route.query)) return
+  await router.replace({ query: nextQuery })
+}
+
+const openTeamModal = async (team, syncUrl = true) => {
   if (!team?.name) return
   selectedTeam.value = team
   teamModalOpen.value = true
+
+  if (syncUrl && !isApplyingTeamQuery.value) {
+    await syncTeamQuery(team)
+  }
 }
 
 const getRoundNumber = (match) => {
@@ -193,6 +244,20 @@ const fetchMatches = async (showLoader = true) => {
   })
   matches.value = [...(response.data || [])].sort((a, b) => getCompetitionPriority(b) - getCompetitionPriority(a))
   hasNextPage.value = matches.value.length === pageSize
+
+  const teamFromQuery = String(route.query.team || '').trim()
+  if (teamFromQuery) {
+    const team = findTeamByToken(teamFromQuery)
+    if (team) {
+      isApplyingTeamQuery.value = true
+      try {
+        await openTeamModal(team, false)
+      } finally {
+        isApplyingTeamQuery.value = false
+      }
+    }
+  }
+
   if (showLoader) loading.value = false
 }
 
@@ -229,6 +294,47 @@ watch(
   async () => {
     syncPageFromUrl()
     await fetchMatches()
+  }
+)
+
+watch(
+  () => route.query.team,
+  async (value) => {
+    const token = String(value || '').trim()
+
+    if (!token) {
+      if (teamModalOpen.value) {
+        teamModalOpen.value = false
+      }
+      return
+    }
+
+    const team = findTeamByToken(token)
+    if (!team) return
+
+    isApplyingTeamQuery.value = true
+    try {
+      await openTeamModal(team, false)
+    } finally {
+      isApplyingTeamQuery.value = false
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => teamModalOpen.value,
+  async (open) => {
+    if (isApplyingTeamQuery.value) return
+
+    if (!open && route.query.team) {
+      await syncTeamQuery(null)
+      return
+    }
+
+    if (open && selectedTeam.value?.name) {
+      await syncTeamQuery(selectedTeam.value)
+    }
   }
 )
 </script>

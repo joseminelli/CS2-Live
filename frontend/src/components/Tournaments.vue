@@ -160,14 +160,10 @@
                       :style="getRoundColumnStyle(roundIndex)">
                       <div class="flow-round-label">{{ round.label }}</div>
                       <div class="round-match-list">
-                        <div
-                          v-for="match in round.matches"
-                          :key="match.key"
-                          class="playoff-matchup"
+                        <div v-for="match in round.matches" :key="match.key" class="playoff-matchup"
                           :class="{ 'is-live': match.isLive, clickable: match.isLive && match.liveUrl }"
                           :role="match.isLive && match.liveUrl ? 'button' : undefined"
-                          :tabindex="match.isLive && match.liveUrl ? 0 : undefined"
-                          @click="openMatchLive(match)"
+                          :tabindex="match.isLive && match.liveUrl ? 0 : undefined" @click="openMatchLive(match)"
                           @keydown.enter.prevent="openMatchLive(match)">
                           <div v-if="match.isLive" class="live-indicator">LIVE</div>
                           <div class="team-box" :class="{ winner: match.winner === 0 }">
@@ -195,11 +191,12 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { tournamentsAPI } from '../api.js'
 import { getChampionshipPriority } from '../utils/matchDisplay.js'
 
 const route = useRoute()
+const router = useRouter()
 
 const tournaments = ref([])
 const loading = ref(true)
@@ -220,6 +217,9 @@ const hasGlobalSearchDataset = ref(false)
 const SEARCH_WINDOW_DAYS = 30
 const GLOBAL_SEARCH_PAGE_SIZE = 50
 const GLOBAL_SEARCH_MAX_PAGES = 10
+const isApplyingRouteQuery = ref(false)
+const pendingBracketQuery = ref(null)
+const MANAGED_QUERY_KEYS = ['q', 'status', 'sort', 'exp', 'br', 'champ', 'stage']
 
 const activeBracketStage = computed(() => {
   return bracketStages.value.find((stage) => stage.id === selectedBracketStageId.value) || null
@@ -630,10 +630,12 @@ const closeBracket = () => {
   bracketOpen.value = false
 }
 
-const openBracket = async (championship) => {
+const openBracket = async (championship, options = {}) => {
+  const preferredStageId = String(options.stageId || '').trim()
   selectedChampionship.value = championship
   bracketStages.value = getBracketStageOptions(championship)
-  const initialStage = bracketStages.value.find((stage) => stage.id === String(championship.currentPhase?.tournamentId))
+  const initialStage = bracketStages.value.find((stage) => stage.id === preferredStageId)
+    || bracketStages.value.find((stage) => stage.id === String(championship.currentPhase?.tournamentId))
     || bracketStages.value.find((stage) => stage.status === 'running')
     || bracketStages.value[0]
 
@@ -911,19 +913,123 @@ const formatDateRange = (beginAt, endAt) => {
   return `${format(beginAt)} - ${format(endAt)}`
 }
 
+const parseBracketOpen = (value) => {
+  const normalized = String(value || '').toLowerCase()
+  return normalized === '1' || normalized === 'true'
+}
+
+const sanitizeStatus = (value) => {
+  const allowed = new Set(['all', 'upcoming', 'running', 'finished'])
+  return allowed.has(String(value || '')) ? String(value) : 'all'
+}
+
+const sanitizeSort = (value) => {
+  const allowed = new Set(['importance', 'recent'])
+  return allowed.has(String(value || '')) ? String(value) : 'importance'
+}
+
+const getRouteQueryWithoutManagedKeys = () => {
+  const base = { ...route.query }
+  MANAGED_QUERY_KEYS.forEach((key) => {
+    delete base[key]
+  })
+  return base
+}
+
+const buildManagedQueryFromState = () => {
+  const nextQuery = getRouteQueryWithoutManagedKeys()
+
+  const normalizedSearch = searchQuery.value.trim()
+  if (normalizedSearch) nextQuery.q = normalizedSearch
+
+  if (selectedStatus.value !== 'all') nextQuery.status = selectedStatus.value
+  if (selectedSort.value !== 'importance') nextQuery.sort = selectedSort.value
+  if (expandedId.value) nextQuery.exp = String(expandedId.value)
+
+  if (bracketOpen.value && selectedChampionship.value?.uid) {
+    nextQuery.br = '1'
+    nextQuery.champ = String(selectedChampionship.value.uid)
+    if (selectedBracketStageId.value) {
+      nextQuery.stage = String(selectedBracketStageId.value)
+    }
+  }
+
+  return nextQuery
+}
+
+const syncRouteQueryFromState = async () => {
+  const nextQuery = buildManagedQueryFromState()
+  const currentSerialized = JSON.stringify(route.query)
+  const nextSerialized = JSON.stringify(nextQuery)
+  if (currentSerialized === nextSerialized) return
+  await router.replace({ query: nextQuery })
+}
+
+const applyRouteQueryToState = (query) => {
+  isApplyingRouteQuery.value = true
+
+  const nextSearch = String(query.q || '').trim()
+  if (nextSearch !== searchQuery.value) searchQuery.value = nextSearch
+
+  const nextStatus = sanitizeStatus(query.status)
+  if (nextStatus !== selectedStatus.value) selectedStatus.value = nextStatus
+
+  const nextSort = sanitizeSort(query.sort)
+  if (nextSort !== selectedSort.value) selectedSort.value = nextSort
+
+  const nextExpanded = String(query.exp || '').trim() || null
+  if (nextExpanded !== expandedId.value) expandedId.value = nextExpanded
+
+  const shouldOpenBracket = parseBracketOpen(query.br)
+  const nextChampUid = String(query.champ || '').trim()
+  const nextStageId = String(query.stage || '').trim()
+
+  if (shouldOpenBracket && nextChampUid) {
+    pendingBracketQuery.value = { champUid: nextChampUid, stageId: nextStageId }
+  } else {
+    pendingBracketQuery.value = null
+    if (bracketOpen.value) {
+      closeBracket()
+    }
+  }
+
+  isApplyingRouteQuery.value = false
+}
+
+const resolvePendingBracketQuery = async () => {
+  const pending = pendingBracketQuery.value
+  if (!pending?.champUid) return
+  if (loading.value || globalSearchLoading.value) return
+
+  if (bracketOpen.value && selectedChampionship.value?.uid === pending.champUid) {
+    if (pending.stageId && pending.stageId !== selectedBracketStageId.value) {
+      const nextStage = bracketStages.value.find((stage) => stage.id === pending.stageId)
+      if (nextStage) {
+        await selectBracketStage(nextStage)
+      }
+    }
+    pendingBracketQuery.value = null
+    return
+  }
+
+  const championship = groupedChampionships.value.find((item) => item.uid === pending.champUid)
+  if (!championship) return
+
+  pendingBracketQuery.value = null
+  await openBracket(championship, { stageId: pending.stageId })
+}
+
 onMounted(async () => {
   try {
     loading.value = true
-    const initialQuery = String(route.query.q || '').trim()
-    if (initialQuery) {
-      searchQuery.value = initialQuery
-    }
+    applyRouteQueryToState(route.query)
 
     const response = await tournamentsAPI.getAll({
       per_page: 100,
       sort: '-modified_at'
     })
     tournaments.value = response.data || []
+    await resolvePendingBracketQuery()
   } catch (error) {
     console.error('Error fetching tournaments:', error)
   } finally {
@@ -998,12 +1104,26 @@ watch(
 )
 
 watch(
-  () => route.query.q,
-  (value) => {
-    const normalized = String(value || '').trim()
-    if (normalized !== searchQuery.value) {
-      searchQuery.value = normalized
-    }
+  () => route.query,
+  async (query) => {
+    applyRouteQueryToState(query)
+    await resolvePendingBracketQuery()
+  },
+  { immediate: true }
+)
+
+watch(
+  [searchQuery, selectedStatus, selectedSort, expandedId, bracketOpen, selectedBracketStageId, () => selectedChampionship.value?.uid],
+  async () => {
+    if (isApplyingRouteQuery.value) return
+    await syncRouteQueryFromState()
+  }
+)
+
+watch(
+  () => groupedChampionships.value,
+  async () => {
+    await resolvePendingBracketQuery()
   }
 )
 </script>
@@ -1443,11 +1563,13 @@ watch(
 }
 
 .live-indicator {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 4px 8px;
+  padding: 4px 10px;
+  border-top-left-radius: 2px;
+  border-top-right-radius: 2px;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.1em;
@@ -1468,7 +1590,7 @@ watch(
   align-items: center;
   text-align: center;
   border-bottom: 1px solid rgba(67, 203, 156, 0.1);
-    justify-content: space-around;
+  justify-content: space-around;
 }
 
 .team-box:last-child {
@@ -1482,7 +1604,7 @@ watch(
 .team-name-short {
   font-size: 13px;
   font-weight: 700;
-    width: 100px;
+  width: 100px;
   color: #e0f2f0;
   line-height: 1.3;
   word-break: break-word;
