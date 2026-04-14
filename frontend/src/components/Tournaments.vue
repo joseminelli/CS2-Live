@@ -87,7 +87,7 @@
 
                 <div class="phase-meta">
                   <span class="phase-status" :class="phase.status">{{ getStatusLabel(phase.status) }}</span>
-                  <span class="phase-region">{{ phase.region || 'Global' }}</span>
+                  <span class="phase-region">{{ formatRegionLabel(phase.region) }}</span>
                 </div>
               </div>
             </div>
@@ -96,19 +96,21 @@
           <div class="content-section info-grid">
             <div class="info-item">
               <span class="info-label">Liga</span>
-              <span class="info-value">{{ champ.leagueName || 'N/A' }}</span>
+              <span class="info-value">{{ formatTextValue(champ.leagueName, 'Não informada') }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Série</span>
-              <span class="info-value">{{ champ.serieName || 'N/A' }}</span>
+              <span class="info-value">{{ formatTextValue(champ.serieName, 'Não informada') }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Região</span>
-              <span class="info-value">{{ champ.region || 'Global' }}</span>
+              <span class="info-value">{{ formatRegionLabel(getChampionshipRegion(champ)) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Times</span>
-              <span class="info-value">{{ champ.teamsCount || '?' }}</span>
+              <span class="info-value" :class="{ 'info-value-muted': !hasKnownTeams(champ.teamsCount) }">
+                {{ formatTeamsCount(champ.teamsCount) }}
+              </span>
             </div>
           </div>
 
@@ -331,6 +333,55 @@ const getStatusLabel = (status) => {
 }
 
 const normalizeText = (value) => String(value || '').replace(/\s+/g, ' ').trim()
+
+const REGION_ALIASES = {
+  SA: 'America do Sul',
+  NA: 'America do Norte',
+  EU: 'Europa',
+  CIS: 'Europa Oriental',
+  APAC: 'Asia-Pacifico',
+  LATAM: 'America Latina',
+  BR: 'Brasil',
+  GLOBAL: 'Global',
+  WORLD: 'Global'
+}
+
+const formatTextValue = (value, fallback = 'Nao informado') => {
+  const normalized = normalizeText(value)
+  return normalized || fallback
+}
+
+const formatRegionLabel = (value) => {
+  const normalized = normalizeText(value)
+  if (!normalized) return 'Global'
+
+  const aliasKey = normalized.toUpperCase()
+  if (REGION_ALIASES[aliasKey]) return REGION_ALIASES[aliasKey]
+
+  return normalized
+}
+
+const hasKnownTeams = (value) => {
+  const total = Number(value)
+  return Number.isFinite(total) && total > 0
+}
+
+const formatTeamsCount = (value) => {
+  const total = Number(value)
+  if (!Number.isFinite(total) || total <= 0) return 'A confirmar'
+  return `${total} times`
+}
+
+const getChampionshipRegion = (championship) => {
+  const current = normalizeText(championship?.currentPhase?.region)
+  if (current) return current
+
+  const firstKnown = Array.isArray(championship?.phases)
+    ? championship.phases.find((phase) => normalizeText(phase?.region))?.region
+    : ''
+
+  return firstKnown || championship?.region || 'Global'
+}
 
 const toTitleCase = (value) => {
   const text = normalizeText(value)
@@ -2053,6 +2104,13 @@ watch(
   color: #e7f4ef;
   font-size: 14px;
   font-weight: 700;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.info-value-muted {
+  color: rgba(190, 225, 216, 0.68);
+  font-weight: 600;
 }
 
 .loading-state,

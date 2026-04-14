@@ -353,7 +353,7 @@ watch(
 }
 
 .page-title {
-  font-size: 56px;
+  font-size: 42px;
   font-weight: 800;
   margin: 0;
   color: #e4e4e7;

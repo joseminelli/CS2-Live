@@ -132,6 +132,8 @@ const selectedTeam = ref({})
 const globalSearchMatches = ref([])
 const globalSearchLoading = ref(false)
 const hasGlobalSearchDataset = ref(false)
+const isApplyingRouteQuery = ref(false)
+const pendingTeamToken = ref('')
 const SEARCH_WINDOW_DAYS = 30
 const GLOBAL_SEARCH_PAGE_SIZE = 50
 const GLOBAL_SEARCH_MAX_PAGES = 8
@@ -141,6 +143,8 @@ const sortOptions = [
   { key: 'league', label: 'Liga e campeonato' },
   { key: 'team', label: 'Nome do time' }
 ]
+
+const allowedSortKeys = new Set(sortOptions.map((option) => option.key))
 
 const formatDate = (date) => {
   if (!date) return 'TBD'
@@ -165,10 +169,106 @@ const getMatchType = (match) => {
   return match.match_type === 'best_of_three' ? 'BO3' : match.match_type === 'best_of_five' ? 'BO5' : 'BO1'
 }
 
-const openTeamModal = (team) => {
+const normalizeText = (value) => String(value || '').trim()
+
+const isDefinedTeamName = (value) => {
+  const name = normalizeText(value)
+  if (!name) return false
+  return !/^tbd$/i.test(name) && name !== '?'
+}
+
+const hasDefinedTeams = (match) => {
+  const teamA = getTeamName(match?.opponents?.[0])
+  const teamB = getTeamName(match?.opponents?.[1])
+  return isDefinedTeamName(teamA) && isDefinedTeamName(teamB)
+}
+
+const normalizeTeamToken = (value) => String(value || '').trim().toLowerCase()
+
+const getTeamQueryToken = (team) => {
+  if (team?.id != null) return String(team.id)
+  if (team?.slug) return String(team.slug)
+  if (team?.name) return String(team.name)
+  return ''
+}
+
+const findTeamByToken = (token) => {
+  const normalized = normalizeTeamToken(token)
+  if (!normalized) return null
+
+  const pools = [matches.value, globalSearchMatches.value]
+  for (const pool of pools) {
+    for (const match of pool) {
+      const opponents = Array.isArray(match?.opponents) ? match.opponents : []
+      for (const item of opponents) {
+        const team = item?.opponent || item
+        if (!team) continue
+
+        const byId = team.id != null && String(team.id) === normalized
+        const bySlug = normalizeTeamToken(team.slug) === normalized
+        const byName = normalizeTeamToken(team.name) === normalized
+
+        if (byId || bySlug || byName) return team
+      }
+    }
+  }
+
+  return null
+}
+
+const parseSort = (value) => {
+  const sort = String(value || '')
+  return allowedSortKeys.has(sort) ? sort : 'date'
+}
+
+const buildSyncedQuery = () => {
+  const next = {}
+  if (currentPage.value > 1) next.page = String(currentPage.value)
+  if (searchQuery.value.trim()) next.q = searchQuery.value.trim()
+  if (sortBy.value !== 'date') next.sort = sortBy.value
+
+  if (teamModalOpen.value && selectedTeam.value?.name) {
+    const token = getTeamQueryToken(selectedTeam.value)
+    if (token) next.team = token
+  }
+
+  return next
+}
+
+const syncRouteQueryFromState = async () => {
+  const nextQuery = buildSyncedQuery()
+  if (JSON.stringify(nextQuery) === JSON.stringify(route.query)) return
+  await router.replace({ query: nextQuery })
+}
+
+const applyRouteQueryToState = (query) => {
+  isApplyingRouteQuery.value = true
+
+  const nextPage = parsePage(query.page)
+  if (nextPage !== currentPage.value) currentPage.value = nextPage
+
+  const nextSearch = String(query.q || '').trim()
+  if (nextSearch !== searchQuery.value) searchQuery.value = nextSearch
+
+  const nextSort = parseSort(query.sort)
+  if (nextSort !== sortBy.value) sortBy.value = nextSort
+
+  pendingTeamToken.value = String(query.team || '').trim()
+  if (!pendingTeamToken.value && teamModalOpen.value) {
+    teamModalOpen.value = false
+  }
+
+  isApplyingRouteQuery.value = false
+}
+
+const openTeamModal = async (team, syncUrl = true) => {
   if (!team?.name) return
   selectedTeam.value = team
   teamModalOpen.value = true
+
+  if (syncUrl && !isApplyingRouteQuery.value) {
+    await syncRouteQueryFromState()
+  }
 }
 
 const followMatch = (match) => {
@@ -198,7 +298,7 @@ const filteredMatches = computed(() => {
     ? (hasGlobalSearchDataset.value ? globalSearchMatches.value : [])
     : matches.value
 
-  let result = baseData
+  let result = baseData.filter(hasDefinedTeams)
   
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
@@ -272,8 +372,10 @@ const ensureGlobalSearchDataset = async () => {
 
 onMounted(async () => {
   try {
-    ensurePageQuery()
-    syncPageFromUrl()
+    applyRouteQueryToState(route.query)
+    if (searchQuery.value.trim()) {
+      await ensureGlobalSearchDataset()
+    }
     await fetchMatches()
   } catch (error) {
     console.error('Error fetching upcoming matches:', error)
@@ -285,12 +387,6 @@ onMounted(async () => {
 const parsePage = (value) => {
   const parsed = Number.parseInt(value, 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
-}
-
-const ensurePageQuery = () => {
-  if (!route.query.page) {
-    router.replace({ query: { ...route.query, page: '1' } })
-  }
 }
 
 const syncPageFromUrl = () => {
@@ -306,11 +402,27 @@ const fetchMatches = async () => {
   })
   matches.value = response.data || []
   hasNextPage.value = matches.value.length === pageSize
+
+  const token = pendingTeamToken.value || String(route.query.team || '').trim()
+  if (token) {
+    const team = findTeamByToken(token)
+    if (team) {
+      isApplyingRouteQuery.value = true
+      try {
+        await openTeamModal(team, false)
+      } finally {
+        isApplyingRouteQuery.value = false
+      }
+      pendingTeamToken.value = ''
+    }
+  }
+
   loading.value = false
 }
 
 const goToPage = (page) => {
-  router.push({ query: { ...route.query, page: String(page) } })
+  currentPage.value = parsePage(page)
+  syncRouteQueryFromState()
 }
 
 watch(
@@ -322,10 +434,50 @@ watch(
 )
 
 watch(
+  () => route.query,
+  async (query) => {
+    applyRouteQueryToState(query)
+
+    if (searchQuery.value.trim()) {
+      await ensureGlobalSearchDataset()
+    }
+  },
+  { immediate: true }
+)
+
+watch(
   () => searchQuery.value,
   async (value) => {
     if (value.trim()) {
       await ensureGlobalSearchDataset()
+    }
+
+    if (!isApplyingRouteQuery.value) {
+      currentPage.value = 1
+      await syncRouteQueryFromState()
+    }
+  }
+)
+
+watch(
+  () => sortBy.value,
+  async () => {
+    if (isApplyingRouteQuery.value) return
+    await syncRouteQueryFromState()
+  }
+)
+
+watch(
+  () => teamModalOpen.value,
+  async (open) => {
+    if (isApplyingRouteQuery.value) return
+    if (!open) {
+      await syncRouteQueryFromState()
+      return
+    }
+
+    if (selectedTeam.value?.name) {
+      await syncRouteQueryFromState()
     }
   }
 )

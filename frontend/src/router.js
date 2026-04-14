@@ -7,20 +7,38 @@ import Tournaments from './components/Tournaments.vue'
 
 const routes = [
   { path: '/', redirect: { name: 'dashboard' } },
-  { path: '/dashboard', name: 'dashboard', component: Dashboard },
-  { path: '/ao-vivo', name: 'live', component: LiveMatches },
-  { path: '/proximos', name: 'upcoming', component: UpcomingMatches },
-  { path: '/resultados', name: 'recent', component: RecentMatches },
-  { path: '/torneios', name: 'tournaments', component: Tournaments },
-  { path: '/times', redirect: { name: 'tournaments' } }
+  { path: '/dashboard', name: 'dashboard', component: Dashboard, meta: { title: 'Dashboard' } },
+  { path: '/ao-vivo', alias: ['/live'], name: 'live', component: LiveMatches, meta: { title: 'Ao Vivo' } },
+  { path: '/proximos', alias: ['/upcoming'], name: 'upcoming', component: UpcomingMatches, meta: { title: 'Proximos Jogos' } },
+  { path: '/resultados', alias: ['/recent'], name: 'recent', component: RecentMatches, meta: { title: 'Resultados' } },
+  { path: '/torneios', alias: ['/tournaments'], name: 'tournaments', component: Tournaments, meta: { title: 'Torneios' } },
+  { path: '/times', redirect: { name: 'tournaments' } },
+  { path: '/:pathMatch(.*)*', name: 'not-found', redirect: { name: 'dashboard' } }
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior() {
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    }
+
+    if (to.hash) {
+      return {
+        el: to.hash,
+        top: 90,
+        behavior: 'smooth'
+      }
+    }
+
     return { top: 0, behavior: 'smooth' }
   }
+})
+
+router.afterEach((to) => {
+  const pageTitle = to.meta?.title ? `${to.meta.title} | CS2 Live` : 'CS2 Live'
+  document.title = pageTitle
 })
 
 export default router
