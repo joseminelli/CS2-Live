@@ -8,22 +8,61 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Configuração CORS - permitir localhost em dev e production URLs em prod
+// Configuração CORS melhorada
 const corsOptions = {
-  origin: [
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
+      'https://cs-2-live.vercel.app',
+      'https://cs2live.vercel.app'
+    ];
+
+    // Permitir requisições sem origin (mobile apps, node-fetch, etc)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Permitir tudo em desenvolvimento
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type'],
+  maxAge: 86400
+};
+
+// Middleware CORS explícito
+app.use(cors(corsOptions));
+
+// Handler para preflight requests
+app.options('*', cors(corsOptions));
+
+// Middleware adicional para garantir headers CORS
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3001',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:3001',
-    'https://cs-2-live.vercel.app'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-};
+    'https://cs-2-live.vercel.app',
+    'https://cs2live.vercel.app'
+  ];
 
-// Middleware
-app.use(cors(corsOptions))
+  if (!origin || allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Max-Age', '86400');
+  }
+
+  next();
+});
+
 app.use(express.json());
 
 // PandaScore API Instance

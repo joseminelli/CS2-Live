@@ -65,7 +65,7 @@
       </div>
       <div v-else class="matches-grid">
         <div v-for="match in liveMatches.slice(0, 3)" :key="match.id" class="live-match-card">
-          <div class="match-status">EN PROGRESSO</div>
+          <div class="match-status">EM PROGRESSO</div>
           <div class="match-content">
             <div class="match-team">
               <img v-if="match.opponents[0]?.opponent?.image_url" :src="match.opponents[0].opponent.image_url" :alt="match.opponents[0].opponent.name" class="team-logo">

@@ -12,12 +12,46 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl()
 
+console.log('🚀 Usando API Base URL:', API_BASE_URL)
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  withCredentials: false
 })
+
+// Interceptador de requisição para debug
+api.interceptors.request.use(
+  (config) => {
+    console.log(`📤 API Request: ${config.method?.toUpperCase()} ${config.url}`)
+    return config
+  },
+  (error) => {
+    console.error('❌ Request error:', error)
+    return Promise.reject(error)
+  }
+)
+
+// Interceptador de resposta para tratamento de erros
+api.interceptors.response.use(
+  (response) => {
+    console.log(`✅ API Response: ${response.status} ${response.config.url}`)
+    return response
+  },
+  (error) => {
+    if (error.response) {
+      console.error(`❌ API Error: ${error.response.status} - ${error.config.url}`)
+      console.error('Response data:', error.response.data)
+    } else if (error.request) {
+      console.error('❌ No response received:', error.request)
+    } else {
+      console.error('❌ Error:', error.message)
+    }
+    return Promise.reject(error)
+  }
+)
 
 export const matchesAPI = {
   getUpcoming: () => api.get('/matches/upcoming'),

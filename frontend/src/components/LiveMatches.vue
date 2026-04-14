@@ -19,7 +19,7 @@
     <div v-else class="live-grid">
       <div v-for="match in matches" :key="match.id" class="live-card">
         <div class="card-header">
-          <span class="live-badge">● EN PROGRESSO</span>
+          <span class="live-badge">● EM PROGRESSO</span>
           <div class="competition-meta">
             <span class="competition-primary">{{ getCompetition(match) }}</span>
             <span v-if="getPhase(match)" class="competition-phase">{{ getPhase(match) }}</span>
