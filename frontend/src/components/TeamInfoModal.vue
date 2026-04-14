@@ -390,15 +390,15 @@ watch(
 
 .players-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .player-card {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
-  padding: 10px;
+  padding: 12px;
   border-radius: 10px;
   border: 1px solid rgba(64, 224, 208, 0.3);
   background: rgba(64, 224, 208, 0.1);
@@ -410,8 +410,8 @@ watch(
 
 .player-avatar,
 .player-avatar-placeholder {
-  width: 52px;
-  height: 52px;
+  width: 64px;
+  height: 64px;
   border-radius: 8px;
 }
 
@@ -438,13 +438,13 @@ watch(
 }
 
 .player-name {
-  font-size: 13px;
+  font-size: 14px;
   color: #ddfff8;
   line-height: 1.3;
 }
 
 .player-detail {
-  font-size: 11px;
+  font-size: 12px;
   color: rgba(221, 255, 248, 0.72);
 }
 
@@ -460,6 +460,10 @@ watch(
 
 @media (max-width: 700px) {
   .team-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .players-list {
     grid-template-columns: 1fr;
   }
 

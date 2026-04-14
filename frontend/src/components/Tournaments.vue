@@ -6,27 +6,41 @@
     </div>
 
     <div class="controls">
-      <div class="search-box">
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Buscar campeonato ou fase..."
-          class="search-input"
-        >
-        <span class="search-icon">🔍</span>
+      <div class="filters-grid">
+        <label class="filter-group search-group">
+          <span class="filter-label">Busca Global</span>
+          <div class="search-box">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Buscar campeonato, liga ou fase..."
+              class="search-input"
+            >
+            <span class="search-icon">🔍</span>
+          </div>
+        </label>
+
+        <label class="filter-group">
+          <span class="filter-label">Status</span>
+          <select v-model="selectedStatus" class="filter-select">
+            <option v-for="status in statusFilters" :key="status.key" :value="status.key">
+              {{ status.label }}
+            </option>
+          </select>
+        </label>
+
+        <label class="filter-group">
+          <span class="filter-label">Ordenar Por</span>
+          <select v-model="selectedSort" class="filter-select">
+            <option value="importance">Importancia do campeonato</option>
+            <option value="recent">Atualizacao mais recente</option>
+          </select>
+        </label>
       </div>
 
-      <div class="filter-controls">
-        <button
-          v-for="status in statusFilters"
-          :key="status.key"
-          @click="selectedStatus = status.key"
-          class="filter-btn"
-          :class="{ active: selectedStatus === status.key }"
-        >
-          {{ status.label }}
-        </button>
-      </div>
+      <p class="search-context">
+        Busca global em torneios na janela de 30 dias, com prioridade por importancia competitiva.
+      </p>
     </div>
 
     <div v-if="loading || globalSearchLoading" class="loading-state">
@@ -277,13 +291,17 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { tournamentsAPI } from '../api.js'
 import { getChampionshipPriority } from '../utils/matchDisplay.js'
+
+const route = useRoute()
 
 const tournaments = ref([])
 const loading = ref(true)
 const searchQuery = ref('')
 const selectedStatus = ref('all')
+const selectedSort = ref('importance')
 const expandedId = ref(null)
 const bracketOpen = ref(false)
 const bracketLoading = ref(false)
@@ -721,6 +739,26 @@ const getGroupKey = (tournament) => {
   return `${leaguePart}-${seriePart}`
 }
 
+const parseNumericSafe = (value) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+const computeGroupImportance = (group) => {
+  return getChampionshipPriority({
+    championshipName: group.championshipName,
+    leagueName: group.leagueName,
+    serieName: group.serieName,
+    teamsCount: group.teamsCount,
+    teams_count: group.teams_count,
+    prizePool: group.prizePool,
+    prize_pool: group.prize_pool,
+    tier: group.tier,
+    leagueTier: group.leagueTier,
+    phases: group.phases
+  })
+}
+
 const groupedChampionships = computed(() => {
   const sourceTournaments = searchQuery.value.trim()
     ? (hasGlobalSearchDataset.value ? globalSearchTournaments.value : [])
@@ -739,6 +777,12 @@ const groupedChampionships = computed(() => {
         serieName: tournament.serie?.full_name || tournament.serie?.name || '',
         region: tournament.region || '',
         teamsCount: tournament.teams_count || tournament.number_of_teams || null,
+        teams_count: tournament.teams_count || tournament.number_of_teams || null,
+        prizePool: tournament.prize_pool || null,
+        prize_pool: tournament.prize_pool || null,
+        tier: tournament.tier || tournament.league?.tier || '',
+        leagueTier: tournament.league?.tier || tournament.serie?.tier || '',
+        importanceScore: 0,
         status: 'upcoming',
         latestDate: tournament.begin_at || tournament.created_at || null,
         phases: []
@@ -755,6 +799,29 @@ const groupedChampionships = computed(() => {
       current.latestDate = tournament.begin_at || tournament.created_at || current.latestDate
     }
 
+    const currentTeams = Math.max(
+      parseNumericSafe(current.teamsCount),
+      parseNumericSafe(tournament.teams_count),
+      parseNumericSafe(tournament.number_of_teams)
+    )
+    current.teamsCount = currentTeams || current.teamsCount
+    current.teams_count = current.teamsCount
+
+    const currentPrize = Math.max(
+      parseNumericSafe(current.prizePool),
+      parseNumericSafe(tournament.prize_pool)
+    )
+    current.prizePool = currentPrize || current.prizePool
+    current.prize_pool = current.prizePool
+
+    if (!current.tier && (tournament.tier || tournament.league?.tier)) {
+      current.tier = tournament.tier || tournament.league?.tier
+    }
+
+    if (!current.leagueTier && (tournament.league?.tier || tournament.serie?.tier)) {
+      current.leagueTier = tournament.league?.tier || tournament.serie?.tier
+    }
+
     current.phases.push({
       uid: `${tournament.id || index}-${index}`,
       phaseName: tournament.name || tournament.full_name || 'Fase',
@@ -764,6 +831,8 @@ const groupedChampionships = computed(() => {
       region: tournament.region || tournament.league?.region || '',
       tournamentId: tournament.id
     })
+
+    current.importanceScore = Math.max(parseNumericSafe(current.importanceScore), computeGroupImportance(current))
   })
 
   return Array.from(grouped.values()).map((group) => {
@@ -781,8 +850,10 @@ const filteredChampionships = computed(() => {
     const query = searchQuery.value.toLowerCase()
     result = result.filter((champ) => {
       const inChampionship = champ.championshipName.toLowerCase().includes(query)
+      const inLeague = champ.leagueName.toLowerCase().includes(query)
+      const inSerie = champ.serieName.toLowerCase().includes(query)
       const inPhases = champ.phases.some((phase) => phase.phaseName.toLowerCase().includes(query))
-      return inChampionship || inPhases
+      return inChampionship || inLeague || inSerie || inPhases
     })
   }
 
@@ -791,8 +862,13 @@ const filteredChampionships = computed(() => {
   }
 
   return result.sort((a, b) => {
-    const priorityDiff = getChampionshipPriority(b) - getChampionshipPriority(a)
-    if (priorityDiff !== 0) return priorityDiff
+    if (selectedSort.value === 'importance') {
+      const explicitDiff = parseNumericSafe(b.importanceScore) - parseNumericSafe(a.importanceScore)
+      if (explicitDiff !== 0) return explicitDiff
+
+      const priorityDiff = getChampionshipPriority(b) - getChampionshipPriority(a)
+      if (priorityDiff !== 0) return priorityDiff
+    }
 
     const statusDiff = (statusPriority[b.status] || 0) - (statusPriority[a.status] || 0)
     if (statusDiff !== 0) return statusDiff
@@ -823,6 +899,11 @@ const formatDateRange = (beginAt, endAt) => {
 onMounted(async () => {
   try {
     loading.value = true
+    const initialQuery = String(route.query.q || '').trim()
+    if (initialQuery) {
+      searchQuery.value = initialQuery
+    }
+
     const response = await tournamentsAPI.getAll({
       per_page: 100,
       sort: '-modified_at'
@@ -900,6 +981,16 @@ watch(
     }
   }
 )
+
+watch(
+  () => route.query.q,
+  (value) => {
+    const normalized = String(value || '').trim()
+    if (normalized !== searchQuery.value) {
+      searchQuery.value = normalized
+    }
+  }
+)
 </script>
 
 <style scoped>
@@ -931,12 +1022,65 @@ watch(
 .controls {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: 1.5fr minmax(170px, 0.7fr) minmax(220px, 0.9fr);
   gap: 14px;
+  align-items: end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-group {
+  min-width: 0;
+}
+
+.filter-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(228, 228, 231, 0.72);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.filter-select {
+  width: 100%;
+  height: 48px;
+  border-radius: 10px;
+  background: rgba(64, 224, 208, 0.08);
+  border: 1px solid rgba(64, 224, 208, 0.24);
+  color: #e4e4e7;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 12px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: rgba(64, 224, 208, 0.5);
+}
+
+.filter-select option {
+  background: #06211d;
+  color: #e4e4e7;
+}
+
+.search-context {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(228, 228, 231, 0.62);
 }
 
 .search-box {
   position: relative;
-  max-width: 460px;
+  width: 100%;
 }
 
 .search-input {
@@ -951,34 +1095,6 @@ watch(
   top: 50%;
   transform: translateY(-50%);
   pointer-events: none;
-}
-
-.filter-controls {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.filter-btn {
-  border-radius: 999px !important;
-  padding: 8px 14px !important;
-  font-size: 12px !important;
-  letter-spacing: 0.04em;
-  border: 1px solid rgba(67, 203, 156, 0.32) !important;
-  background: rgba(8, 18, 16, 0.92) !important;
-  color: rgba(215, 242, 236, 0.9) !important;
-}
-
-.filter-btn:hover {
-  border-color: rgba(67, 203, 156, 0.62) !important;
-  box-shadow: 0 0 14px rgba(67, 203, 156, 0.22);
-}
-
-.filter-btn.active {
-  color: #072018 !important;
-  background: linear-gradient(180deg, #8dffdc 0%, #43cb9c 100%) !important;
-  border-color: rgba(67, 203, 156, 0.9) !important;
-  box-shadow: 0 0 18px rgba(67, 203, 156, 0.35);
 }
 
 .tournaments-grid {

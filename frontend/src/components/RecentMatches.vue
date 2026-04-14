@@ -6,27 +6,33 @@
     </div>
     
     <div class="controls">
-      <div class="search-box">
-        <input 
-          v-model="searchQuery" 
-          type="text" 
-          placeholder="Buscar por time..."
-          class="search-input"
-        >
-        <span class="search-icon">🔍</span>
+      <div class="filters-grid">
+        <label class="filter-group search-group">
+          <span class="filter-label">Busca Global</span>
+          <div class="search-box">
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="Buscar time, liga ou campeonato..."
+              class="search-input"
+            >
+            <span class="search-icon">🔍</span>
+          </div>
+        </label>
+
+        <label class="filter-group">
+          <span class="filter-label">Ordenar Resultados</span>
+          <select v-model="sortBy" class="filter-select">
+            <option v-for="opt in sortOptions" :key="opt.key" :value="opt.key">
+              {{ opt.label }}
+            </option>
+          </select>
+        </label>
       </div>
-      
-      <div class="sort-controls">
-        <button 
-          v-for="opt in sortOptions"
-          :key="opt.key"
-          @click="sortBy = opt.key"
-          class="sort-btn"
-          :class="{ active: sortBy === opt.key }"
-        >
-          {{ opt.label }}
-        </button>
-      </div>
+
+      <p class="search-context">
+        A busca considera partidas finalizadas dos ultimos 30 dias.
+      </p>
     </div>
     
     <div v-if="loading || globalSearchLoading" class="loading-state">
@@ -151,9 +157,9 @@ const GLOBAL_SEARCH_PAGE_SIZE = 50
 const GLOBAL_SEARCH_MAX_PAGES = 8
 
 const sortOptions = [
-  { key: 'date', label: '📅 Data' },
-  { key: 'league', label: '🏆 Liga' },
-  { key: 'team', label: '👥 Time' }
+  { key: 'date', label: 'Mais recentes' },
+  { key: 'league', label: 'Liga e campeonato' },
+  { key: 'team', label: 'Nome do time' }
 ]
 
 const formatDate = (date) => {
@@ -243,7 +249,12 @@ const filteredMatches = computed(() => {
     const query = searchQuery.value.toLowerCase()
     result = result.filter(m => 
       m.opponents[0]?.opponent?.name?.toLowerCase().includes(query) ||
-      m.opponents[1]?.opponent?.name?.toLowerCase().includes(query)
+      m.opponents[1]?.opponent?.name?.toLowerCase().includes(query) ||
+      getCompetition(m).toLowerCase().includes(query) ||
+      getPhase(m).toLowerCase().includes(query) ||
+      (m.league?.name || '').toLowerCase().includes(query) ||
+      (m.serie?.full_name || m.serie?.name || '').toLowerCase().includes(query) ||
+      (m.tournament?.full_name || m.tournament?.name || '').toLowerCase().includes(query)
     )
   }
 
@@ -393,8 +404,61 @@ watch(
 
 .controls {
   display: flex;
-  gap: 20px;
+  gap: 12px;
   flex-direction: column;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: 1.5fr minmax(220px, 0.8fr);
+  gap: 14px;
+  align-items: end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-group {
+  min-width: 0;
+}
+
+.filter-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(228, 228, 231, 0.72);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.filter-select {
+  width: 100%;
+  height: 48px;
+  border-radius: 10px;
+  background: rgba(64, 224, 208, 0.08);
+  border: 1px solid rgba(64, 224, 208, 0.24);
+  color: #e4e4e7;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 12px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: rgba(64, 224, 208, 0.5);
+}
+
+.filter-select option {
+  background: #06211d;
+  color: #e4e4e7;
+}
+
+.search-context {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(228, 228, 231, 0.62);
 }
 
 .search-box {
@@ -430,35 +494,6 @@ watch(
   top: 50%;
   transform: translateY(-50%);
   pointer-events: none;
-}
-
-.sort-controls {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.sort-btn {
-  padding: 8px 16px;
-  background: rgba(64, 224, 208, 0.08);
-  border: 1px solid rgba(64, 224, 208, 0.2);
-  color: rgba(228, 228, 231, 0.8);
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.sort-btn:hover {
-  border-color: rgba(64, 224, 208, 0.4);
-  background: rgba(64, 224, 208, 0.1);
-}
-
-.sort-btn.active {
-  background: rgba(64, 224, 208, 0.2);
-  border-color: rgba(64, 224, 208, 0.6);
-  color: #40e0d0;
 }
 
 .loading-state {
@@ -787,6 +822,11 @@ watch(
 @media (max-width: 768px) {
   .page-title {
     font-size: 32px;
+  }
+
+  .filters-grid {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
   
   .controls {
