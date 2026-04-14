@@ -10,12 +10,8 @@
         <label class="filter-group search-group">
           <span class="filter-label">Busca Global</span>
           <div class="search-box">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Buscar campeonato, liga ou fase..."
-              class="search-input"
-            >
+            <input v-model="searchQuery" type="text" placeholder="Buscar campeonato, liga ou fase..."
+              class="search-input">
             <span class="search-icon">🔍</span>
           </div>
         </label>
@@ -55,12 +51,8 @@
     </div>
 
     <div v-else class="tournaments-grid">
-      <article
-        v-for="champ in filteredChampionships"
-        :key="champ.uid"
-        class="tournament-card"
-        :class="{ expanded: expandedId === champ.uid }"
-      >
+      <article v-for="champ in filteredChampionships" :key="champ.uid" class="tournament-card"
+        :class="{ expanded: expandedId === champ.uid }">
         <button class="card-header" @click="toggleExpand(champ.uid)">
           <div class="header-content">
             <div class="tournament-info">
@@ -133,154 +125,71 @@
       <div v-if="bracketOpen" class="bracket-overlay" @click.self="closeBracket">
         <section class="bracket-modal">
           <header class="bracket-modal-header">
-            <div>
-              <span class="modal-kicker">Chaveamento</span>
-              <h3 class="modal-title">{{ selectedChampionship?.championshipName || 'Campeonato' }}</h3>
-              <p class="modal-subtitle">
-                {{ activeBracketStage?.label || selectedChampionship?.currentPhase?.phaseName || 'Fase selecionada' }}
-              </p>
+            <div class="header-left">
+              <button class="close-btn-icon" @click="closeBracket">✕</button>
+              <div class="header-info">
+                <h3 class="modal-title">{{ selectedChampionship?.championshipName || 'Campeonato' }}</h3>
+                <p class="modal-subtitle">{{ activeBracketStage?.label || selectedChampionship?.currentPhase?.phaseName
+                  || 'Chaveamento' }}</p>
+              </div>
             </div>
-
-            <button class="close-btn" @click="closeBracket">Fechar painel</button>
           </header>
 
-          <div class="bracket-stage-tabs">
-            <button
-              v-for="stage in bracketStages"
-              :key="stage.id"
-              class="stage-tab"
-              :class="{ active: stage.id === selectedBracketStageId }"
-              @click="selectBracketStage(stage)"
-            >
-              <span class="stage-tab-label">{{ stage.label }}</span>
-              <span class="stage-tab-status">{{ getStatusLabel(stage.status) }}</span>
+          <div v-if="bracketStages.length > 1" class="bracket-nav-tabs">
+            <button v-for="stage in bracketStages.slice(0, 4)" :key="stage.id" class="tab-btn"
+              :class="{ active: stage.id === selectedBracketStageId }" @click="selectBracketStage(stage)">
+              {{ stage.label }}
             </button>
-          </div>
-
-          <div class="bracket-summary">
-            <div class="summary-item">
-              <span class="summary-label">Campeonato</span>
-              <strong class="summary-value">{{ selectedChampionship?.championshipName || 'Campeonato' }}</strong>
-            </div>
-            <div class="summary-item">
-              <span class="summary-label">Fase</span>
-              <strong class="summary-value">{{ activeBracketStage?.label || selectedChampionship?.currentPhase?.phaseName || 'Sem fase definida' }}</strong>
-            </div>
-            <div class="summary-item">
-              <span class="summary-label">Partidas</span>
-              <strong class="summary-value">{{ bracketRounds.reduce((total, round) => total + round.matches.length, 0) }}</strong>
-            </div>
-            <div class="summary-item">
-              <span class="summary-label">Seções</span>
-              <strong class="summary-value">{{ bracketRounds.length }}</strong>
-            </div>
           </div>
 
           <div v-if="bracketLoading" class="bracket-loading">
             <div class="spinner"></div>
-            <p>Buscando chaveamento...</p>
           </div>
 
           <div v-else-if="bracketError" class="bracket-empty">
-            <div class="empty-icon">🧩</div>
             <p>{{ bracketError }}</p>
           </div>
 
           <div v-else class="bracket-scroll">
-            <div class="bracket-stage-strip">
-              <span class="stage-pill">Visualização do chaveamento</span>
-              <span class="stage-pill">{{ selectedChampionship?.region || 'Global' }}</span>
-              <span class="stage-pill">{{ activeBracketStage?.label || 'Stage atual' }}</span>
-            </div>
 
             <div v-if="activeBracketMode === 'group'" class="group-stage-list">
-              <article v-for="match in flatBracketMatches" :key="match.key" class="stage-match-row">
-                <div class="stage-match-main">
-                  <div class="stage-match-head">
-                    <span class="match-tag">{{ match.roundLabel }}</span>
-                    <span class="match-time">{{ match.timeLabel }}</span>
+              <div class="simple-matches-list">
+                <div v-for="match in flatBracketMatches" :key="match.key" class="simple-matchup">
+                  <div class="simple-team">
+                    <span class="team-pill">{{ match.teamA }}</span>
+                    <span class="score-text">{{ match.scoreA || '-' }}</span>
                   </div>
-                  <div class="stage-match-teams">
-                    <div class="stage-team-line">
-                      <span class="team-name-inline">{{ match.teamA }}</span>
-                      <strong class="team-score">{{ match.scoreA }}</strong>
-                    </div>
-                    <div class="stage-team-separator">VS</div>
-                    <div class="stage-team-line">
-                      <span class="team-name-inline">{{ match.teamB }}</span>
-                      <strong class="team-score">{{ match.scoreB }}</strong>
-                    </div>
+                  <div class="vs-badge">vs</div>
+                  <div class="simple-team">
+                    <span class="team-pill">{{ match.teamB }}</span>
+                    <span class="score-text">{{ match.scoreB || '-' }}</span>
                   </div>
                 </div>
-                <div class="stage-match-side">
-                  <span class="stage-match-status">{{ match.statusLabel }}</span>
-                  <span class="stage-match-number">{{ match.numberLabel }}</span>
-                </div>
-              </article>
+              </div>
             </div>
 
             <div v-else class="bracket-container">
-              <section v-for="section in bracketSections" :key="section.key" class="bracket-section">
-                <header class="bracket-section-header">
-                  <div>
-                    <span class="section-kicker">Chaveamento</span>
-                    <h4>{{ section.title }}</h4>
-                    <p>{{ section.subtitle }}</p>
-                  </div>
-                </header>
-
-                <div class="bracket-visual">
-                  <div class="bracket-rounds">
-                    <div v-for="(round, roundIndex) in section.rounds" :key="round.key" class="bracket-round">
-                      <div class="round-header">
-                        <span class="round-label">{{ round.label }}</span>
-                        <span class="round-meta">{{ round.matches.length }} partida(s)</span>
-                      </div>
-                      
-                      <div class="matches-column">
-                        <div 
-                          v-for="(match, matchIndex) in round.matches" 
-                          :key="match.key"
-                          class="bracket-matchup"
-                        >
-                          <div class="matchup-container">
-                            <!-- Team A -->
-                            <div class="matchup-team" :class="{ 'is-winner': match.winner === 0 }">
-                              <div class="team-slot">
-                                <div class="team-badge" :style="{ backgroundColor: getTeamColor(match.teamA) }"></div>
-                                <div class="team-info">
-                                  <span class="team-name">{{ match.teamA }}</span>
-                                  <span class="team-score">{{ match.scoreA || '-' }}</span>
-                                </div>
-                              </div>
-                              <div v-if="match.timeLabel" class="match-schedule">
-                                <span class="time-badge">{{ match.timeLabel }}</span>
-                              </div>
-                            </div>
-
-                            <!-- Divider -->
-                            <div class="matchup-divider"></div>
-
-                            <!-- Team B -->
-                            <div class="matchup-team" :class="{ 'is-winner': match.winner === 1 }">
-                              <div class="team-slot">
-                                <div class="team-badge" :style="{ backgroundColor: getTeamColor(match.teamB) }"></div>
-                                <div class="team-info">
-                                  <span class="team-name">{{ match.teamB }}</span>
-                                  <span class="team-score">{{ match.scoreB || '-' }}</span>
-                                </div>
-                              </div>
-                              <div v-if="match.timeLabel" class="match-schedule">
-                                <span class="time-badge">{{ match.timeLabel }}</span>
-                              </div>
-                            </div>
-                          </div>
+              <div class="playoff-bracket">
+                <div v-for="section in bracketSections" :key="section.key" class="bracket-round-section">
+                  <h4 class="round-section-title">{{ section.title }}</h4>
+                  <div class="rounds-flow">
+                    <div v-for="round in section.rounds" :key="round.key" class="round-column">
+                      <div class="flow-round-label">{{ round.label }}</div>
+                      <div v-for="match in round.matches" :key="match.key" class="playoff-matchup">
+                        <div class="team-box" :class="{ winner: match.winner === 0 }">
+                          <span class="team-name-short">{{ match.teamA }}</span>
+                          <span class="team-score-value">{{ match.scoreA || '—' }}</span>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="team-box" :class="{ winner: match.winner === 1 }">
+                          <span class="team-name-short">{{ match.teamB }}</span>
+                          <span class="team-score-value">{{ match.scoreB || '—' }}</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </section>
+              </div>
             </div>
           </div>
         </section>
@@ -422,15 +331,15 @@ const getTeamColor = (teamName) => {
     '#54a0ff', '#ff6a88', '#ffa502', '#00d2d3', '#845ef7',
     '#ff6348', '#ffd500', '#00d159', '#005eff', '#ff006d'
   ]
-  
+
   if (!teamName) return colors[0]
-  
+
   let hash = 0
   for (let i = 0; i < teamName.length; i++) {
     hash = ((hash << 5) - hash) + teamName.charCodeAt(i)
     hash = hash & hash
   }
-  
+
   return colors[Math.abs(hash) % colors.length]
 }
 
@@ -1229,7 +1138,7 @@ watch(
 .bracket-overlay {
   position: fixed;
   inset: 0;
-  z-index: 120;
+  z-index: 9999;
   background: rgba(0, 0, 0, 0.78);
   backdrop-filter: blur(8px);
   display: flex;
@@ -1240,7 +1149,8 @@ watch(
 
 .bracket-modal {
   width: min(98vw, 1560px);
-  max-height: 92vh;
+  max-height: 88vh;
+  margin-top: 80px;
   overflow: hidden;
   border-radius: 22px;
   border: 1px solid rgba(67, 203, 156, 0.3);
@@ -1256,11 +1166,230 @@ watch(
 .bracket-modal-header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 16px;
   padding: 20px 22px 18px;
   border-bottom: 1px solid rgba(67, 203, 156, 0.16);
 }
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.close-btn-icon {
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(67, 203, 156, 0.3);
+  background: rgba(67, 203, 156, 0.08);
+  color: #dff8f0;
+  border-radius: 8px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.close-btn-icon:hover {
+  background: rgba(67, 203, 156, 0.15);
+  border-color: rgba(67, 203, 156, 0.5);
+}
+
+.header-info {
+  flex: 1;
+}
+
+.bracket-nav-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(67, 203, 156, 0.12);
+}
+
+.tab-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(67, 203, 156, 0.2);
+  background: rgba(67, 203, 156, 0.05);
+  color: #e0f2f0;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  border-color: rgba(67, 203, 156, 0.4);
+  background: rgba(67, 203, 156, 0.12);
+}
+
+.tab-btn.active {
+  background: rgba(67, 203, 156, 0.25);
+  border-color: rgba(67, 203, 156, 0.6);
+  color: #7afce5;
+}
+
+.simple-matches-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.simple-matchup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(67, 203, 156, 0.15);
+  background: rgba(67, 203, 156, 0.04);
+  transition: all 0.2s ease;
+}
+
+.simple-matchup:hover {
+  background: rgba(67, 203, 156, 0.08);
+  border-color: rgba(67, 203, 156, 0.3);
+}
+
+.simple-team {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.team-pill {
+  font-size: 14px;
+  font-weight: 700;
+  color: #dffaf4;
+  text-align: center;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score-text {
+  font-size: 18px;
+  font-weight: 900;
+  color: #7afce5;
+}
+
+.vs-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(228, 228, 231, 0.5);
+  text-transform: uppercase;
+}
+
+.playoff-bracket {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.bracket-round-section {
+  background: rgba(67, 203, 156, 0.04);
+  border: 1px solid rgba(67, 203, 156, 0.12);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.round-section-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #8ef8df;
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rounds-flow {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.round-column {
+  flex: 0 0 auto;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.flow-round-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(228, 228, 231, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(67, 203, 156, 0.1);
+}
+
+.playoff-matchup {
+  border: 1px solid rgba(67, 203, 156, 0.2);
+  border-radius: 10px;
+  background: rgba(6, 14, 12, 0.6);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.playoff-matchup:hover {
+  border-color: rgba(67, 203, 156, 0.4);
+  background: rgba(6, 14, 12, 0.8);
+}
+
+.team-box {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  border-bottom: 1px solid rgba(67, 203, 156, 0.1);
+}
+
+.team-box:last-child {
+  border-bottom: none;
+}
+
+.team-box.winner {
+  background: rgba(67, 203, 156, 0.1);
+}
+
+.team-name-short {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e0f2f0;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.team-box.winner .team-name-short {
+  color: #7afce5;
+}
+
+.team-score-value {
+  font-size: 18px;
+  font-weight: 900;
+  color: #8ef8df;
+}
+
+.divider {
+  height: 4px;
+  background: linear-gradient(90deg, transparent, rgba(67, 203, 156, 0.15), transparent);
+}
+
 
 .bracket-summary {
   display: grid;
@@ -1408,6 +1537,7 @@ watch(
   letter-spacing: 0.08em;
   font-weight: 800;
 }
+
 .group-stage-list {
   display: flex;
   flex-direction: column;
@@ -1810,7 +1940,9 @@ watch(
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 768px) {
@@ -1915,6 +2047,106 @@ watch(
   .bracket-section-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .bracket-modal {
+    margin-top: -10px;
+    width: calc(100vw - 12px);
+    max-height: 80vh;
+  }
+
+  .bracket-modal-header {
+    padding: 14px 14px 12px;
+  }
+
+  .close-btn-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+  }
+
+  .modal-title {
+    font-size: 18px;
+  }
+
+  .modal-subtitle {
+    font-size: 12px;
+  }
+
+  .bracket-nav-tabs {
+    padding: 10px 14px;
+    gap: 6px;
+  }
+
+  .tab-btn {
+    padding: 6px 11px;
+    font-size: 11px;
+  }
+
+  .simple-matchup {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .team-pill {
+    font-size: 12px;
+    max-width: 100px;
+  }
+
+  .score-text {
+    font-size: 16px;
+  }
+
+  .bracket-scroll {
+    padding: 12px 14px 16px;
+  }
+
+  .round-column {
+    min-width: 180px;
+  }
+
+  .team-box {
+    padding: 10px;
+  }
+
+  .team-name-short {
+    font-size: 12px;
+  }
+
+  .team-score-value {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bracket-overlay {
+    padding: 8px;
+  }
+
+  .bracket-modal {
+    width: calc(100vw - 8px);
+    border-radius: 16px;
+  }
+
+  .bracket-modal-header {
+    padding: 12px 12px 10px;
+  }
+
+  .modal-title {
+    font-size: 16px;
+  }
+
+  .modal-subtitle {
+    font-size: 11px;
+  }
+
+  .round-column {
+    min-width: 150px;
+  }
+
+  .team-pill {
+    font-size: 11px;
+    max-width: 90px;
   }
 }
 

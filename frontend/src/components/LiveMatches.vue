@@ -4,18 +4,18 @@
       <h1 class="page-title">Jogos Ao Vivo</h1>
       <p class="page-subtitle">Acompanhamento em tempo real • Atualiza a cada 30 segundos</p>
     </div>
-    
+
     <div v-if="loading" class="loading-state">
       <div class="spinner"></div>
       <p>Buscando jogos ao vivo...</p>
     </div>
-    
+
     <div v-else-if="matches.length === 0" class="empty-state">
       <div class="empty-icon">🎮</div>
       <p>Nenhum jogo ao vivo no momento</p>
       <p class="empty-hint">Verifique novamente em alguns instantes</p>
     </div>
-    
+
     <div v-else class="live-grid">
       <div v-for="match in matches" :key="match.id" class="live-card">
         <div class="card-header">
@@ -25,21 +25,17 @@
             <span v-if="getPhase(match)" class="competition-phase">{{ getPhase(match) }}</span>
           </div>
         </div>
-        
+
         <div class="card-body">
           <div class="team-section team-1">
             <button class="team-logo-btn" type="button" @click="openTeamModal(match.opponents[0]?.opponent)">
-              <img 
-                v-if="match.opponents[0]?.opponent?.image_url" 
-                :src="match.opponents[0].opponent.image_url" 
-                :alt="match.opponents[0].opponent.name"
-                class="team-logo"
-              >
+              <img v-if="match.opponents[0]?.opponent?.image_url" :src="match.opponents[0].opponent.image_url"
+                :alt="match.opponents[0].opponent.name" class="team-logo">
               <div v-else class="team-logo-fallback">?</div>
             </button>
             <h3 class="team-title">{{ getTeamName(match.opponents[0]) }}</h3>
           </div>
-          
+
           <div class="score-display">
             <div class="score-box">
               <span class="score-digit">{{ match.results[0]?.score || '0' }}</span>
@@ -49,33 +45,24 @@
               <span class="score-digit">{{ match.results[1]?.score || '0' }}</span>
             </div>
           </div>
-          
+
           <div class="team-section team-2">
-            <h3 class="team-title">{{ getTeamName(match.opponents[1]) }}</h3>
+            <h3 class="team-title2">{{ getTeamName(match.opponents[1]) }}</h3>
             <button class="team-logo-btn" type="button" @click="openTeamModal(match.opponents[1]?.opponent)">
-              <img 
-                v-if="match.opponents[1]?.opponent?.image_url" 
-                :src="match.opponents[1].opponent.image_url" 
-                :alt="match.opponents[1].opponent.name"
-                class="team-logo"
-              >
+              <img v-if="match.opponents[1]?.opponent?.image_url" :src="match.opponents[1].opponent.image_url"
+                :alt="match.opponents[1].opponent.name" class="team-logo">
               <div v-else class="team-logo-fallback">?</div>
             </button>
           </div>
         </div>
-        
+
         <div class="card-footer">
           <span v-if="match.games_attributes" class="match-info">
             Map {{ getRoundNumber(match) }}
           </span>
           <div v-if="match.streams_list && match.streams_list.length > 0" class="streams-buttons">
-            <button 
-              v-for="(stream, index) in match.streams_list" 
-              :key="index"
-              @click="openStream(stream)"
-              class="btn-stream"
-              :title="stream.language"
-            >
+            <button v-for="(stream, index) in match.streams_list" :key="index" @click="openStream(stream)"
+              class="btn-stream" :title="stream.language">
               {{ getStreamName(stream) }}
             </button>
           </div>
@@ -139,10 +126,10 @@ const getPhase = (match) => {
 const watchLive = (match) => {
   if (match.streams_list && match.streams_list.length > 0) {
     // Procurar por stream oficial, depois main, depois o primeiro disponível
-    let stream = match.streams_list.find(s => s.official) || 
-                 match.streams_list.find(s => s.main) || 
-                 match.streams_list[0]
-    
+    let stream = match.streams_list.find(s => s.official) ||
+      match.streams_list.find(s => s.main) ||
+      match.streams_list[0]
+
     if (stream.raw_url) {
       window.open(stream.raw_url, '_blank')
     } else if (stream.embed_url) {
@@ -218,7 +205,7 @@ onMounted(async () => {
     ensurePageQuery()
     syncPageFromUrl()
     await fetchMatches()
-    
+
     pollInterval = setInterval(async () => {
       try {
         await fetchMatches(false)
@@ -291,7 +278,9 @@ watch(
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .pagination {
@@ -381,8 +370,15 @@ watch(
 }
 
 @keyframes cardGlow {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 .live-card:hover {
@@ -413,8 +409,15 @@ watch(
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .league-name {
@@ -485,6 +488,7 @@ watch(
   border-color: rgba(255, 107, 107, 0.4);
 }
 
+.team-title2,
 .team-title {
   font-size: 18px;
   font-weight: 700;
@@ -526,8 +530,15 @@ watch(
 }
 
 @keyframes scoreGlow {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 .score-digit {
@@ -624,11 +635,11 @@ watch(
   .page-title {
     font-size: 32px;
   }
-  
+
   .live-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .card-body {
     padding: 20px 16px;
     gap: 10px;
@@ -644,6 +655,11 @@ watch(
     gap: 10px;
   }
 
+  .team-title2 {
+    text-align: right;
+    flex: 1;
+  }
+  
   .team-title {
     text-align: left;
     flex: 1;
@@ -660,21 +676,22 @@ watch(
     font-size: 28px;
     align-self: center;
   }
-  
+
   .team-logo {
     width: 60px;
     height: 60px;
   }
-  
+
+  .team-title2,
   .team-title {
     font-size: 14px;
   }
-  
+
   .score-box {
     width: 80px;
     height: 80px;
   }
-  
+
   .score-digit {
     font-size: 36px;
   }
@@ -723,4 +740,3 @@ watch(
   }
 }
 </style>
-
