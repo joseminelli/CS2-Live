@@ -1529,6 +1529,7 @@ watch(
   font-weight: 800;
   color: #8ef8df;
   margin: 0 0 16px 0;
+    text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -1538,6 +1539,7 @@ watch(
   gap: 30px;
   overflow-x: auto;
   padding: 10px 10px 12px 0;
+    justify-content: center;
 }
 
 .round-column {
@@ -2252,6 +2254,11 @@ watch(
   .bracket-modal {
     width: calc(100vw - 8px);
     border-radius: 16px;
+        max-height: 80vh;
+    margin-top: -10px;
+  }
+  .rounds-flow{
+    justify-content: left;
   }
 
   .bracket-modal-header {

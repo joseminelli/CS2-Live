@@ -11,8 +11,11 @@ const getApiBaseUrl = () => {
 }
 
 const API_BASE_URL = getApiBaseUrl()
+const IS_DEV = import.meta.env.DEV
 
-console.log('🚀 Usando API Base URL:', API_BASE_URL)
+if (IS_DEV) {
+  console.log('🚀 Usando API Base URL:', API_BASE_URL)
+}
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -25,11 +28,15 @@ const api = axios.create({
 // Interceptador de requisição para debug
 api.interceptors.request.use(
   (config) => {
-    console.log(`📤 API Request: ${config.method?.toUpperCase()} ${config.url}`)
+    if (IS_DEV) {
+      console.log(`📤 API Request: ${config.method?.toUpperCase()} ${config.url}`)
+    }
     return config
   },
   (error) => {
-    console.error('❌ Request error:', error)
+    if (IS_DEV) {
+      console.error('❌ Request error:', error)
+    }
     return Promise.reject(error)
   }
 )
@@ -37,59 +44,157 @@ api.interceptors.request.use(
 // Interceptador de resposta para tratamento de erros
 api.interceptors.response.use(
   (response) => {
-    console.log(`✅ API Response: ${response.status} ${response.config.url}`)
+    if (IS_DEV) {
+      console.log(`✅ API Response: ${response.status} ${response.config.url}`)
+    }
     return response
   },
   (error) => {
-    if (error.response) {
-      console.error(`❌ API Error: ${error.response.status} - ${error.config.url}`)
-      console.error('Response data:', error.response.data)
-    } else if (error.request) {
-      console.error('❌ No response received:', error.request)
-    } else {
-      console.error('❌ Error:', error.message)
+    if (IS_DEV) {
+      if (error.response) {
+        console.error(`❌ API Error: ${error.response.status} - ${error.config?.url}`)
+        console.error('Response data:', error.response.data)
+      } else if (error.request) {
+        console.error('❌ No response received:', error.request)
+      } else {
+        console.error('❌ Error:', error.message)
+      }
     }
     return Promise.reject(error)
   }
 )
 
+const responseCache = new Map()
+const inFlightGetRequests = new Map()
+
+const CACHE_TTL_MS = {
+  default: 30_000,
+  '/matches/live': 8_000,
+  '/matches/upcoming': 60_000,
+  '/matches/recent': 60_000,
+  '/dashboard': 20_000,
+  '/tournaments': 90_000,
+  '/leagues': 300_000,
+  '/series': 300_000,
+  '/teams': 180_000,
+  '/health': 10_000
+}
+
+const stableSerialize = (value) => {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableSerialize).join(',')}]`
+  }
+
+  if (value && typeof value === 'object') {
+    const keys = Object.keys(value).sort()
+    return `{${keys.map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`).join(',')}}`
+  }
+
+  return JSON.stringify(value)
+}
+
+const buildCacheKey = (url, params) => `${url}::${stableSerialize(params || {})}`
+
+const resolveCacheTtl = (url, ttlOverride) => {
+  if (Number.isFinite(ttlOverride) && ttlOverride >= 0) return ttlOverride
+
+  for (const [prefix, ttl] of Object.entries(CACHE_TTL_MS)) {
+    if (prefix === 'default') continue
+    if (url.startsWith(prefix)) return ttl
+  }
+
+  return CACHE_TTL_MS.default
+}
+
+const buildCachedResponse = (cached, url, params) => ({
+  data: cached.data,
+  status: 200,
+  statusText: 'OK',
+  headers: {},
+  config: {
+    url,
+    method: 'get',
+    params,
+    fromCache: true
+  },
+  request: null
+})
+
+const cachedGet = (url, params = {}, options = {}) => {
+  const key = buildCacheKey(url, params)
+  const ttlMs = resolveCacheTtl(url, options.ttl)
+  const now = Date.now()
+
+  if (!options.forceRefresh && !options.skipCache) {
+    const cached = responseCache.get(key)
+    if (cached && cached.expiresAt > now) {
+      return Promise.resolve(buildCachedResponse(cached, url, params))
+    }
+
+    const inflight = inFlightGetRequests.get(key)
+    if (inflight) return inflight
+  }
+
+  const requestPromise = api.get(url, { params })
+    .then((response) => {
+      if (!options.skipCache && ttlMs > 0) {
+        responseCache.set(key, {
+          data: response.data,
+          expiresAt: Date.now() + ttlMs
+        })
+      }
+      return response
+    })
+    .finally(() => {
+      inFlightGetRequests.delete(key)
+    })
+
+  inFlightGetRequests.set(key, requestPromise)
+  return requestPromise
+}
+
+export const clearApiCache = () => {
+  responseCache.clear()
+  inFlightGetRequests.clear()
+}
+
 export const matchesAPI = {
-  getUpcoming: (params = { all: true }) => api.get('/matches/upcoming', { params }),
-  getRecent: (params = { all: true }) => api.get('/matches/recent', { params }),
-  getLive: (params = { all: true }) => api.get('/matches/live', { params }),
-  getById: (id) => api.get(`/matches/${id}`)
+  getUpcoming: (params = { all: true }, options = {}) => cachedGet('/matches/upcoming', params, options),
+  getRecent: (params = { all: true }, options = {}) => cachedGet('/matches/recent', params, options),
+  getLive: (params = { all: true }, options = {}) => cachedGet('/matches/live', params, options),
+  getById: (id, options = {}) => cachedGet(`/matches/${id}`, {}, options)
 }
 
 export const teamsAPI = {
-  getAll: (params = { all: true }) => api.get('/teams', { params }),
-  getById: (id) => api.get(`/teams/${id}`)
+  getAll: (params = { all: true }, options = {}) => cachedGet('/teams', params, options),
+  getById: (id, options = {}) => cachedGet(`/teams/${id}`, {}, options)
 }
 
 export const dashboardAPI = {
-  getSummary: () => api.get('/dashboard')
+  getSummary: (options = {}) => cachedGet('/dashboard', {}, options)
 }
 
 export const playersAPI = {
-  getById: (id) => api.get(`/players/${id}`)
+  getById: (id, options = {}) => cachedGet(`/players/${id}`, {}, options)
 }
 
 export const leaguesAPI = {
-  getAll: () => api.get('/leagues')
+  getAll: (options = {}) => cachedGet('/leagues', {}, options)
 }
 
 export const seriesAPI = {
-  getAll: () => api.get('/series')
+  getAll: (options = {}) => cachedGet('/series', {}, options)
 }
 
 export const tournamentsAPI = {
-  getAll: (params = {}) => api.get('/tournaments', { params }),
-  getById: (id) => api.get(`/tournaments/${id}`),
-  getBrackets: (id, params = {}) => api.get(`/tournaments/${id}/brackets`, { params }),
-  getMatches: (id, params = {}) => api.get(`/tournaments/${id}/matches`, { params })
+  getAll: (params = {}, options = {}) => cachedGet('/tournaments', params, options),
+  getById: (id, options = {}) => cachedGet(`/tournaments/${id}`, {}, options),
+  getBrackets: (id, params = {}, options = {}) => cachedGet(`/tournaments/${id}/brackets`, params, options),
+  getMatches: (id, params = {}, options = {}) => cachedGet(`/tournaments/${id}/matches`, params, options)
 }
 
 export const healthAPI = {
-  check: () => api.get('/health')
+  check: (options = {}) => cachedGet('/health', {}, options)
 }
 
 export default api
