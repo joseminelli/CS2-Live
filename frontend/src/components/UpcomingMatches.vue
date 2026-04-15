@@ -123,7 +123,7 @@ const router = useRouter()
 const matches = ref([])
 const loading = ref(true)
 const searchQuery = ref('')
-const sortBy = ref('date')
+const sortBy = ref('importance-date')
 const currentPage = ref(1)
 const hasNextPage = ref(false)
 const pageSize = 20
@@ -139,6 +139,7 @@ const GLOBAL_SEARCH_PAGE_SIZE = 50
 const GLOBAL_SEARCH_MAX_PAGES = 8
 
 const sortOptions = [
+  { key: 'importance-date', label: 'Campeonatos Importantes + Proximidade' },
   { key: 'date', label: 'Data mais proxima' },
   { key: 'league', label: 'Liga e campeonato' },
   { key: 'team', label: 'Nome do time' }
@@ -218,14 +219,14 @@ const findTeamByToken = (token) => {
 
 const parseSort = (value) => {
   const sort = String(value || '')
-  return allowedSortKeys.has(sort) ? sort : 'date'
+  return allowedSortKeys.has(sort) ? sort : 'importance-date'
 }
 
 const buildSyncedQuery = () => {
   const next = {}
   if (currentPage.value > 1) next.page = String(currentPage.value)
   if (searchQuery.value.trim()) next.q = searchQuery.value.trim()
-  if (sortBy.value !== 'date') next.sort = sortBy.value
+  if (sortBy.value !== 'importance-date') next.sort = sortBy.value
 
   if (teamModalOpen.value && selectedTeam.value?.name) {
     const token = getTeamQueryToken(selectedTeam.value)
@@ -321,9 +322,13 @@ const filteredMatches = computed(() => {
     result = [...result].sort((a, b) => 
       getCompetitionPriority(b) - getCompetitionPriority(a) || (a.opponents[0]?.opponent?.name || '').localeCompare(b.opponents[0]?.opponent?.name || '')
     )
-  } else if (sortBy.value === 'date') {
+  } else if (sortBy.value === 'importance-date') {
     result = [...result].sort((a, b) => 
       getCompetitionPriority(b) - getCompetitionPriority(a) || new Date(a.scheduled_at || 0) - new Date(b.scheduled_at || 0)
+    )
+  } else {
+    result = [...result].sort((a, b) => 
+      new Date(a.scheduled_at || 0) - new Date(b.scheduled_at || 0)
     )
   }
   
@@ -713,7 +718,7 @@ watch(
 }
 
 .match-date {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: rgba(64, 224, 208, 0.8);
   font-family: 'Courier New', monospace;

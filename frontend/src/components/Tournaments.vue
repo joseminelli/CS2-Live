@@ -177,6 +177,7 @@
                             <span class="team-name-short">{{ match.teamB }}</span>
                             <span class="team-score-value">{{ match.scoreB }}</span>
                           </div>
+                          <div v-if="match.timeLabel" class="match-time-label">{{ match.timeLabel }}</div>
                         </div>
                       </div>
                     </div>
@@ -1768,6 +1769,17 @@ watch(
   background: linear-gradient(90deg, transparent, rgba(67, 203, 156, 0.15), transparent);
 }
 
+.match-time-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(127, 248, 213, 0.8);
+  padding: 8px 10px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.1);
+  border-top: 1px solid rgba(67, 203, 156, 0.1);
+  font-family: 'Courier New', monospace;
+}
+
 
 .modal-title {
   margin: 0;
@@ -2153,7 +2165,7 @@ watch(
 
 .phase-date {
   color: rgba(190, 225, 216, 0.7);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .phase-meta {
