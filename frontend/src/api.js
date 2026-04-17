@@ -25,6 +25,19 @@ const api = axios.create({
   withCredentials: false
 })
 
+const unwrapApiEnvelope = (payload) => {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return payload
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, 'data')
+    && Object.prototype.hasOwnProperty.call(payload, 'success')) {
+    return payload.data
+  }
+
+  return payload
+}
+
 // Interceptador de requisição para debug
 api.interceptors.request.use(
   (config) => {
@@ -44,6 +57,8 @@ api.interceptors.request.use(
 // Interceptador de resposta para tratamento de erros
 api.interceptors.response.use(
   (response) => {
+    response.data = unwrapApiEnvelope(response.data)
+
     if (IS_DEV) {
       console.log(`✅ API Response: ${response.status} ${response.config.url}`)
     }
