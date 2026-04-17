@@ -135,6 +135,12 @@ const buildCachedResponse = (cached, url, params) => ({
   request: null
 })
 
+const buildApiError = (error, fallbackMessage = 'API indisponivel no momento') => {
+  const enriched = error instanceof Error ? error : new Error(fallbackMessage)
+  enriched.userMessage = fallbackMessage
+  return enriched
+}
+
 const cachedGet = (url, params = {}, options = {}) => {
   const key = buildCacheKey(url, params)
   const ttlMs = resolveCacheTtl(url, options.ttl)
@@ -159,6 +165,18 @@ const cachedGet = (url, params = {}, options = {}) => {
         })
       }
       return response
+    })
+    .catch((error) => {
+      const fallback = responseCache.get(key)
+      if (fallback && fallback.data !== undefined) {
+        const stale = buildCachedResponse(fallback, url, params)
+        stale.config.stale = true
+        stale.config.staleReason = 'network-failure'
+        stale.config.warning = 'Mostrando ultimo dado em cache (API temporariamente indisponivel).'
+        return stale
+      }
+
+      throw buildApiError(error)
     })
     .finally(() => {
       inFlightGetRequests.delete(key)

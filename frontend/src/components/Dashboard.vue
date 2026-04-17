@@ -4,11 +4,26 @@
       <div class="header-content">
         <h1 class="page-title">Dashboard Principal</h1>
         <p class="page-subtitle">Acompanhamento em tempo real de Counter-Strike 2</p>
+        <div class="dashboard-actions">
+          <button class="pref-btn" :class="{ active: personalizedHome }" @click="togglePersonalizedHome">
+            {{ personalizedHome ? 'Home personalizada ON' : 'Home personalizada OFF' }}
+          </button>
+          <button class="pref-btn" @click="clearFavorites">Limpar favoritos</button>
+        </div>
       </div>
       <div class="refresh-indicator">
         <span v-if="!loading" class="sync-status">✓ Sincronizado</span>
         <span v-else class="sync-loading">⟳ Atualizando...</span>
       </div>
+    </div>
+
+    <div v-if="errorMessage" class="error-banner">
+      <p>{{ errorMessage }}</p>
+      <button class="retry-btn" @click="loadDashboardData({ forceRefresh: true })">Tentar novamente</button>
+    </div>
+
+    <div v-if="staleWarning" class="warning-banner">
+      {{ staleWarning }}
     </div>
 
     <div v-if="loading" class="stats-grid">
@@ -85,7 +100,7 @@
       </div>
       <div v-else class="matches-grid">
         <div v-for="match in liveMatches.slice(0, 3)" :key="match.id" class="live-match-card" role="button" tabindex="0"
-          @click="openLiveMatch(match)" @keyup.enter="openLiveMatch(match)">
+          @click.self="openLiveMatch(match)" @keyup.enter.self="openLiveMatch(match)">
           <div class="match-status">EM PROGRESSO</div>
           <div class="match-content">
             <div class="match-team">
@@ -107,6 +122,22 @@
                 <img v-if="match.opponents[1]?.opponent?.image_url" :src="match.opponents[1].opponent.image_url"
                   :alt="match.opponents[1].opponent.name" class="team-logo">
                 <div v-else class="team-logo-fallback">?</div>
+              </button>
+            </div>
+          </div>
+          <div class="match-context">
+            <span class="context-pill context-format">{{ getMatchFormat(match) }}</span>
+            <div class="match-tournament-panel">
+              <div class="match-tournament">{{ getCompetition(match) }}</div>
+              <button
+                class="favorite-chip"
+                type="button"
+                @pointerdown.stop
+                @click.stop="toggleFavoriteChampionshipByMatch(match)"
+              >
+                <span class="favorite-burst" :key="favoritePulseTokens[getChampionshipPulseKey(match)] || 0">
+                  {{ isFavoriteChampionshipByMatch(match) ? '★ Campeonato favorito' : '☆ Favoritar campeonato' }}
+                </span>
               </button>
             </div>
           </div>
@@ -140,7 +171,7 @@
             <span class="vs-text">vs</span>
             <span class="team-name-short">{{ match.opponents[1]?.opponent?.name || 'TBD' }}</span>
           </div>
-          <div class="league-badge">{{ match.league?.name || 'League' }}</div>
+          <div class="league-badge">{{ match.league?.name || 'League' }} • {{ getMatchFormat(match) }}</div>
         </div>
       </div>
     </div>
@@ -150,11 +181,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { dashboardAPI } from '../api.js'
 import { getCompetitionPriority } from '../utils/matchDisplay.js'
 import TeamInfoModal from './TeamInfoModal.vue'
+import {
+  clearAllFavorites,
+  buildChampionshipId,
+  getFavoriteChampionshipIds,
+  getFavoriteTeamIds,
+  isPersonalizedHomeEnabled,
+  setPersonalizedHomeEnabled,
+  toggleFavoriteChampionship,
+  toggleFavoriteTeam
+} from '../services/preferences.js'
 
 const router = useRouter()
 
@@ -162,6 +203,11 @@ const loading = ref(true)
 const liveMatches = ref([])
 const upcomingMatches = ref([])
 const recentMatches = ref([])
+const staleWarning = ref('')
+const errorMessage = ref('')
+const personalizedHome = ref(isPersonalizedHomeEnabled())
+const favoriteTeamIds = ref(getFavoriteTeamIds())
+const favoriteChampionshipIds = ref(getFavoriteChampionshipIds())
 
 const liveCount = ref(0)
 const upcomingCount = ref(0)
@@ -170,6 +216,7 @@ const tournamentCount = ref(0)
 
 const teamModalOpen = ref(false)
 const selectedTeam = ref({})
+const favoritePulseTokens = ref({})
 
 const goToRoute = (routeName) => {
   router.push({ name: routeName })
@@ -199,6 +246,83 @@ const openTeamModal = (team) => {
   teamModalOpen.value = true
 }
 
+const refreshPreferences = () => {
+  favoriteTeamIds.value = getFavoriteTeamIds()
+  favoriteChampionshipIds.value = getFavoriteChampionshipIds()
+  personalizedHome.value = isPersonalizedHomeEnabled()
+}
+
+const togglePersonalizedHome = () => {
+  setPersonalizedHomeEnabled(!personalizedHome.value)
+  refreshPreferences()
+  loadDashboardData()
+}
+
+const clearFavorites = () => {
+  clearAllFavorites()
+  refreshPreferences()
+  loadDashboardData()
+}
+
+const isFavoriteTeamByMatch = (match, sideIndex) => {
+  const team = match?.opponents?.[sideIndex]?.opponent
+  const teamId = team?.id != null ? String(team.id) : ''
+  return teamId ? favoriteTeamIds.value.includes(teamId) : false
+}
+
+const toggleFavoriteTeamFromMatch = (match, sideIndex) => {
+  const team = match?.opponents?.[sideIndex]?.opponent
+  if (!team?.id) return
+  toggleFavoriteTeam(team)
+  refreshPreferences()
+  if (personalizedHome.value) loadDashboardData()
+}
+
+const isFavoriteChampionshipByMatch = (match) => {
+  const championshipId = buildChampionshipId(match)
+  return championshipId ? favoriteChampionshipIds.value.includes(championshipId) : false
+}
+
+const getChampionshipPulseKey = (match) => buildChampionshipId(match) || String(match?.id || '')
+
+const getCompetition = (match) => {
+  return match?.tournament?.full_name
+    || match?.tournament?.name
+    || match?.serie?.full_name
+    || match?.serie?.name
+    || match?.league?.name
+    || 'CS2'
+}
+
+const toggleFavoriteChampionshipByMatch = (match) => {
+  toggleFavoriteChampionship(match)
+  refreshPreferences()
+  const pulseKey = getChampionshipPulseKey(match)
+  favoritePulseTokens.value = { ...favoritePulseTokens.value, [pulseKey]: Date.now() }
+  if (personalizedHome.value) loadDashboardData()
+}
+
+const getMatchPhase = (match) => {
+  return match?.serie?.name || match?.tournament?.name || 'Fase indefinida'
+}
+
+const getMatchFormat = (match) => {
+  const games = Number(match?.number_of_games || 1)
+  if (games >= 5) return 'BO5'
+  if (games >= 3) return 'BO3'
+  return 'BO1'
+}
+
+const isFavoriteContext = (match) => {
+  const teamA = String(match?.opponents?.[0]?.opponent?.id || '')
+  const teamB = String(match?.opponents?.[1]?.opponent?.id || '')
+  const favorites = new Set(favoriteTeamIds.value)
+  const hasFavTeam = favorites.has(teamA) || favorites.has(teamB)
+
+  const isFavChampionship = Boolean(buildChampionshipId(match) && favoriteChampionshipIds.value.includes(buildChampionshipId(match)))
+  return hasFavTeam || isFavChampionship
+}
+
 const sortByCompetitionImportance = (items) => {
   return [...items].sort((a, b) => getCompetitionPriority(b) - getCompetitionPriority(a))
 }
@@ -213,25 +337,49 @@ const formatDateTime = (date) => {
   })
 }
 
-onMounted(async () => {
+const loadDashboardData = async (options = {}) => {
   try {
     loading.value = true
+    errorMessage.value = ''
+    staleWarning.value = ''
 
-    const response = await dashboardAPI.getSummary()
+    const response = await dashboardAPI.getSummary({
+      forceRefresh: options.forceRefresh === true
+    })
     const summary = response.data || {}
+    const live = sortByCompetitionImportance(summary.liveMatches || [])
+    const upcoming = sortByCompetitionImportance(summary.upcomingMatches || [])
+    const recent = sortByCompetitionImportance(summary.recentMatches || [])
 
-    liveMatches.value = sortByCompetitionImportance(summary.liveMatches || [])
-    upcomingMatches.value = sortByCompetitionImportance(summary.upcomingMatches || [])
-    recentMatches.value = sortByCompetitionImportance(summary.recentMatches || [])
+    const usePersonalized = personalizedHome.value
+      && (favoriteTeamIds.value.length > 0 || favoriteChampionshipIds.value.length > 0)
+
+    liveMatches.value = usePersonalized ? live.filter(isFavoriteContext) : live
+    upcomingMatches.value = usePersonalized ? upcoming.filter(isFavoriteContext) : upcoming
+    recentMatches.value = usePersonalized ? recent.filter(isFavoriteContext) : recent
     liveCount.value = summary.liveCount ?? liveMatches.value.length
     upcomingCount.value = summary.upcomingCount ?? upcomingMatches.value.length
     recentCount.value = summary.recentCount ?? recentMatches.value.length
     tournamentCount.value = summary.tournamentCount ?? summary.tournamentsCount ?? summary.tournaments?.length ?? 0
+
+    if (response.config?.stale) {
+      staleWarning.value = response.config.warning || 'Mostrando ultimo dado em cache.'
+    }
   } catch (error) {
-    console.error('Error loading dashboard data:', error)
+    errorMessage.value = error?.userMessage || 'API fora do ar. Tente novamente em instantes.'
   } finally {
     loading.value = false
   }
+}
+
+onMounted(async () => {
+  window.addEventListener('cs2-preferences-updated', refreshPreferences)
+  refreshPreferences()
+  await loadDashboardData()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('cs2-preferences-updated', refreshPreferences)
 })
 </script>
 
@@ -265,6 +413,56 @@ onMounted(async () => {
   font-size: 20px;
   color: rgba(228, 228, 231, 0.6);
   margin: 0;
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pref-btn {
+  border: 1px solid rgba(64, 224, 208, 0.3);
+  background: rgba(64, 224, 208, 0.08);
+  color: #d2faf3;
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pref-btn.active {
+  background: rgba(64, 224, 208, 0.18);
+  border-color: rgba(64, 224, 208, 0.65);
+}
+
+.error-banner,
+.warning-banner {
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 107, 107, 0.34);
+  background: rgba(255, 107, 107, 0.09);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.warning-banner {
+  border-color: rgba(255, 206, 84, 0.4);
+  background: rgba(255, 206, 84, 0.1);
+}
+
+.retry-btn {
+  border: 1px solid rgba(255, 107, 107, 0.6);
+  background: rgba(255, 107, 107, 0.2);
+  color: #ffe9e9;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .refresh-indicator {
@@ -469,6 +667,7 @@ onMounted(async () => {
   position: relative;
   overflow: hidden;
   cursor: pointer;
+  isolation: isolate;
 }
 
 .live-match-card::before {
@@ -481,6 +680,7 @@ onMounted(async () => {
   background: radial-gradient(circle at center, rgba(255, 107, 107, 0.1) 0%, transparent 70%);
   opacity: 0;
   animation: liveGlow 2s infinite;
+  pointer-events: none;
 }
 
 @keyframes liveGlow {
@@ -516,6 +716,70 @@ onMounted(async () => {
   position: relative;
   z-index: 1;
   padding-top: 20px;
+}
+
+.favorite-btn {
+  border: 1px solid rgba(255, 216, 107, 0.34);
+  background: rgba(255, 216, 107, 0.1);
+  color: #ffd86b;
+  border-radius: 999px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  position: relative;
+  z-index: 2;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.match-context {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  position: relative;
+  z-index: 4;
+}
+
+.match-tournament-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.context-format {
+  border-color: rgba(64, 224, 208, 0.24);
+  background: rgba(64, 224, 208, 0.08);
+  color: #bffdf7;
+}
+
+.favorite-chip {
+  border: 1px solid rgba(255, 216, 107, 0.5);
+  background: rgba(255, 216, 107, 0.12);
+  color: #ffedb1;
+  border-radius: 999px;
+  padding: 9px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 4;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(255, 216, 107, 0.08);
+}
+
+.match-tournament {
+  font-size: 20px;
+  font-weight: 800;
+  color: #f4f6f8;
+  letter-spacing: -0.01em;
+  text-align: center;
+  line-height: 1.15;
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.08);
 }
 
 .match-team {

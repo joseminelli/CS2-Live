@@ -71,6 +71,11 @@
         class="team-card"
       >
         <div class="card-header">
+          <button class="favorite-btn" type="button" @click.stop="toggleFavoriteTeamCard(team)">
+            <span class="favorite-burst" :key="favoritePulseTokens[team.id] || 0">
+              {{ isFavoriteTeamCard(team) ? '★' : '☆' }}
+            </span>
+          </button>
           <img 
             v-if="team.image_url" 
             :src="team.image_url" 
@@ -107,10 +112,12 @@
         </div>
         
         <div class="card-footer">
-          <button class="btn-primary">Ver Detalhes</button>
+          <button class="btn-primary" type="button" @click="openTeamModal(team)">Ver Detalhes</button>
         </div>
       </div>
     </div>
+
+    <TeamInfoModal v-model="teamModalOpen" :team="selectedTeam" />
 
     <div class="pagination" v-if="!loading && teams.length > 0">
       <button class="pagination-btn" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">Anterior</button>
@@ -121,9 +128,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { teamsAPI } from '../api.js'
+import TeamInfoModal from './TeamInfoModal.vue'
+import { isFavoriteTeam, toggleFavoriteTeam } from '../services/preferences.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -137,6 +146,10 @@ const regionFilter = ref('all')
 const currentPage = ref(1)
 const hasNextPage = ref(false)
 const pageSize = 24
+const teamModalOpen = ref(false)
+const selectedTeam = ref({})
+const favoriteVersion = ref(0)
+const favoritePulseTokens = ref({})
 
 const sortOptions = [
   { key: 'featured', label: '✨ Destaque' },
@@ -195,6 +208,27 @@ const syncPageFromUrl = () => {
 
 const goToPage = (page) => {
   router.push({ query: { ...route.query, page: String(page) } })
+}
+
+const openTeamModal = (team) => {
+  if (!team?.name) return
+  selectedTeam.value = team
+  teamModalOpen.value = true
+}
+
+const refreshFavoriteState = () => {
+  favoriteVersion.value += 1
+}
+
+const isFavoriteTeamCard = (team) => {
+  favoriteVersion.value
+  return isFavoriteTeam(team)
+}
+
+const toggleFavoriteTeamCard = (team) => {
+  toggleFavoriteTeam(team)
+  refreshFavoriteState()
+  favoritePulseTokens.value = { ...favoritePulseTokens.value, [team.id]: Date.now() }
 }
 
 const fetchTeams = async () => {
@@ -272,6 +306,7 @@ const filteredTeams = computed(() => {
 })
 
 onMounted(async () => {
+  window.addEventListener('cs2-preferences-updated', refreshFavoriteState)
   try {
     ensurePageQuery()
     syncPageFromUrl()
@@ -281,6 +316,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('cs2-preferences-updated', refreshFavoriteState)
 })
 
 watch(
@@ -503,6 +542,7 @@ watch(
 }
 
 .card-header {
+  position: relative;
   padding: 20px;
   background: rgba(0, 0, 0, 0.2);
   border-bottom: 1px solid rgba(64, 224, 208, 0.1);
@@ -510,6 +550,20 @@ watch(
   justify-content: center;
   align-items: center;
   height: 140px;
+}
+
+.favorite-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: 0;
+  background: rgba(255, 216, 107, 0.18);
+  color: #ffd86b;
+  border-radius: 8px;
+  padding: 5px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .team-logo {

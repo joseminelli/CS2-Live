@@ -34,6 +34,13 @@
         A busca considera partidas finalizadas dos ultimos 30 dias.
       </p>
     </div>
+
+    <div v-if="errorMessage" class="error-banner">
+      <p>{{ errorMessage }}</p>
+      <button class="retry-btn" @click="fetchMatches(true)">Tentar novamente</button>
+    </div>
+
+    <div v-if="staleWarning" class="warning-banner">{{ staleWarning }}</div>
     
     <div v-if="loading || globalSearchLoading" class="loading-state">
       <div class="spinner"></div>
@@ -162,6 +169,8 @@ const router = useRouter()
 
 const matches = ref([])
 const loading = ref(true)
+const errorMessage = ref('')
+const staleWarning = ref('')
 const searchQuery = ref('')
 const sortBy = ref('importance-date')
 const currentPage = ref(1)
@@ -492,31 +501,43 @@ const syncPageFromUrl = () => {
   currentPage.value = parsePage(route.query.page)
 }
 
-const fetchMatches = async () => {
+const fetchMatches = async (forceRefresh = false) => {
   loading.value = true
-  const response = await matchesAPI.getRecent({
-    all: false,
-    per_page: pageSize,
-    page: currentPage.value
-  })
-  matches.value = response.data || []
-  hasNextPage.value = matches.value.length === pageSize
+  errorMessage.value = ''
+  staleWarning.value = ''
 
-  const token = pendingTeamToken.value || String(route.query.team || '').trim()
-  if (token) {
-    const team = findTeamByToken(token)
-    if (team) {
-      isApplyingRouteQuery.value = true
-      try {
-        await openTeamModal(team, false)
-      } finally {
-        isApplyingRouteQuery.value = false
-      }
-      pendingTeamToken.value = ''
+  try {
+    const response = await matchesAPI.getRecent({
+      all: false,
+      per_page: pageSize,
+      page: currentPage.value
+    }, { forceRefresh })
+
+    matches.value = response.data || []
+    hasNextPage.value = matches.value.length === pageSize
+
+    if (response.config?.stale) {
+      staleWarning.value = response.config.warning || 'Mostrando ultimo dado em cache.'
     }
-  }
 
-  loading.value = false
+    const token = pendingTeamToken.value || String(route.query.team || '').trim()
+    if (token) {
+      const team = findTeamByToken(token)
+      if (team) {
+        isApplyingRouteQuery.value = true
+        try {
+          await openTeamModal(team, false)
+        } finally {
+          isApplyingRouteQuery.value = false
+        }
+        pendingTeamToken.value = ''
+      }
+    }
+  } catch (error) {
+    errorMessage.value = error?.userMessage || 'API fora do ar. Tente novamente em instantes.'
+  } finally {
+    loading.value = false
+  }
 }
 
 const goToPage = (page) => {
@@ -762,6 +783,34 @@ watch(
   padding: 80px 20px;
   gap: 15px;
   text-align: center;
+}
+
+.error-banner,
+.warning-banner {
+  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 107, 107, 0.34);
+  background: rgba(255, 107, 107, 0.09);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.warning-banner {
+  border-color: rgba(255, 206, 84, 0.4);
+  background: rgba(255, 206, 84, 0.1);
+}
+
+.retry-btn {
+  border: 1px solid rgba(255, 107, 107, 0.6);
+  background: rgba(255, 107, 107, 0.2);
+  color: #ffe9e9;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .empty-icon {

@@ -40,6 +40,7 @@ const ambientParticles = [
   { id: 7, src: `${import.meta.env.BASE_URL}assets/icons/icon7.png`, variant: 'icon-large', style: 'left: 48%; top: 20%; animation-delay: -8s; animation-duration: 30s;' },
   { id: 8, src: `${import.meta.env.BASE_URL}assets/icons/icon8.png`, variant: 'icon-medium', style: 'left: 56%; top: 54%; animation-delay: -2s; animation-duration: 19s;' }
 ]
+
 </script>
 
 <style>

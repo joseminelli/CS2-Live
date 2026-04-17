@@ -5,6 +5,13 @@
       <p class="page-subtitle">Acompanhamento em tempo real • Atualiza a cada 30 segundos</p>
     </div>
 
+    <div v-if="errorMessage" class="error-banner">
+      <p>{{ errorMessage }}</p>
+      <button class="retry-btn" @click="fetchMatches(true)">Tentar novamente</button>
+    </div>
+
+    <div v-if="staleWarning" class="warning-banner">{{ staleWarning }}</div>
+
     <div v-if="loading" class="loading-state">
       <div class="spinner"></div>
       <p>Buscando jogos ao vivo...</p>
@@ -112,6 +119,8 @@ const router = useRouter()
 
 const matches = ref([])
 const loading = ref(true)
+const errorMessage = ref('')
+const staleWarning = ref('')
 const currentPage = ref(1)
 const hasNextPage = ref(false)
 const pageSize = 12
@@ -336,28 +345,40 @@ const syncPageFromUrl = () => {
 
 const fetchMatches = async (showLoader = true) => {
   if (showLoader) loading.value = true
-  const response = await matchesAPI.getLive({
-    all: false,
-    per_page: pageSize,
-    page: currentPage.value
-  })
-  matches.value = [...(response.data || [])].sort((a, b) => getCompetitionPriority(b) - getCompetitionPriority(a))
-  hasNextPage.value = matches.value.length === pageSize
+  errorMessage.value = ''
+  staleWarning.value = ''
 
-  const teamFromQuery = String(route.query.team || '').trim()
-  if (teamFromQuery) {
-    const team = findTeamByToken(teamFromQuery)
-    if (team) {
-      isApplyingTeamQuery.value = true
-      try {
-        await openTeamModal(team, false)
-      } finally {
-        isApplyingTeamQuery.value = false
+  try {
+    const response = await matchesAPI.getLive({
+      all: false,
+      per_page: pageSize,
+      page: currentPage.value
+    }, { forceRefresh: showLoader })
+
+    matches.value = [...(response.data || [])].sort((a, b) => getCompetitionPriority(b) - getCompetitionPriority(a))
+    hasNextPage.value = matches.value.length === pageSize
+
+    if (response.config?.stale) {
+      staleWarning.value = response.config.warning || 'Mostrando ultimo dado em cache.'
+    }
+
+    const teamFromQuery = String(route.query.team || '').trim()
+    if (teamFromQuery) {
+      const team = findTeamByToken(teamFromQuery)
+      if (team) {
+        isApplyingTeamQuery.value = true
+        try {
+          await openTeamModal(team, false)
+        } finally {
+          isApplyingTeamQuery.value = false
+        }
       }
     }
+  } catch (error) {
+    errorMessage.value = error?.userMessage || 'API fora do ar. Tente novamente em instantes.'
+  } finally {
+    if (showLoader) loading.value = false
   }
-
-  if (showLoader) loading.value = false
 }
 
 const goToPage = (page) => {
@@ -526,6 +547,34 @@ watch(
   padding: 80px 20px;
   gap: 15px;
   text-align: center;
+}
+
+.error-banner,
+.warning-banner {
+  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 107, 107, 0.34);
+  background: rgba(255, 107, 107, 0.09);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.warning-banner {
+  border-color: rgba(255, 206, 84, 0.4);
+  background: rgba(255, 206, 84, 0.1);
+}
+
+.retry-btn {
+  border: 1px solid rgba(255, 107, 107, 0.6);
+  background: rgba(255, 107, 107, 0.2);
+  color: #ffe9e9;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .empty-icon {

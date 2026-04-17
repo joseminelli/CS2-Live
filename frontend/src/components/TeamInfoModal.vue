@@ -17,6 +17,11 @@
               <p class="team-modal-subtitle">
                 {{ teamDetails?.acronym || team?.acronym || 'Sem sigla' }}
               </p>
+              <button class="favorite-team-btn" type="button" @click="toggleFavoriteCurrentTeam">
+                <span class="favorite-burst" :key="favoritePulseToken">
+                  {{ isFavoriteCurrentTeam ? '★ Time favorito' : '☆ Favoritar time' }}
+                </span>
+              </button>
             </div>
           </div>
 
@@ -67,8 +72,9 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { teamsAPI } from '../api.js'
+import { isFavoriteTeam, toggleFavoriteTeam } from '../services/preferences.js'
 
 const fallbackTeamsById = new Map()
 let fallbackTeamsLoaded = false
@@ -90,6 +96,8 @@ const emit = defineEmits(['update:modelValue'])
 const loading = ref(false)
 const teamDetails = ref(null)
 const detailsCache = new Map()
+const favoriteVersion = ref(0)
+const favoritePulseToken = ref(0)
 
 const regionNames = typeof Intl !== 'undefined' && Intl.DisplayNames
   ? new Intl.DisplayNames(['pt-BR'], { type: 'region' })
@@ -103,6 +111,23 @@ const players = computed(() => {
   const list = teamDetails.value?.players || props.team?.players || []
   return Array.isArray(list) ? list : []
 })
+
+const currentTeam = computed(() => teamDetails.value || props.team || {})
+
+const isFavoriteCurrentTeam = computed(() => {
+  favoriteVersion.value
+  return isFavoriteTeam(currentTeam.value)
+})
+
+const refreshFavoriteState = () => {
+  favoriteVersion.value += 1
+}
+
+const toggleFavoriteCurrentTeam = () => {
+  toggleFavoriteTeam(currentTeam.value)
+  refreshFavoriteState()
+  favoritePulseToken.value = Date.now()
+}
 
 const formatRegionName = (value) => {
   const raw = String(value || '').trim()
@@ -260,6 +285,14 @@ watch(
   },
   { immediate: true }
 )
+
+onMounted(() => {
+  window.addEventListener('cs2-preferences-updated', refreshFavoriteState)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('cs2-preferences-updated', refreshFavoriteState)
+})
 </script>
 
 <style scoped>
@@ -332,6 +365,18 @@ watch(
   margin: 4px 0 0;
   color: rgba(232, 250, 245, 0.6);
   font-size: 13px;
+}
+
+.favorite-team-btn {
+  margin-top: 8px;
+  border: 1px solid rgba(255, 216, 107, 0.5);
+  background: rgba(255, 216, 107, 0.12);
+  color: #ffefbd;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .team-modal-close {

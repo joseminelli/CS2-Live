@@ -69,6 +69,11 @@
               <span class="tournament-status" :class="champ.status">
                 {{ getStatusLabel(champ.status) }}
               </span>
+              <button class="favorite-champ-btn" type="button" @click.stop="toggleFavoriteChampionshipCard(champ)">
+                <span class="favorite-burst" :key="favoritePulseTokens[champ.uid] || 0">
+                  {{ isFavoriteChampionshipCard(champ) ? '★' : '☆' }}
+                </span>
+              </button>
               <span class="status-icon">{{ expandedId === champ.uid ? '▼' : '▶' }}</span>
             </div>
           </div>
@@ -193,10 +198,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { tournamentsAPI } from '../api.js'
 import { getChampionshipPriority } from '../utils/matchDisplay.js'
+import {
+  buildChampionshipId,
+  getFavoriteChampionshipIds,
+  toggleFavoriteChampionship
+} from '../services/preferences.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -223,6 +233,8 @@ const GLOBAL_SEARCH_MAX_PAGES = 10
 const isApplyingRouteQuery = ref(false)
 const pendingBracketQuery = ref(null)
 const MANAGED_QUERY_KEYS = ['q', 'status', 'sort', 'exp', 'br', 'champ', 'stage']
+const favoriteChampionshipIds = ref(getFavoriteChampionshipIds())
+const favoritePulseTokens = ref({})
 
 const activeBracketStage = computed(() => {
   return bracketStages.value.find((stage) => stage.id === selectedBracketStageId.value) || null
@@ -1040,6 +1052,22 @@ const toggleExpand = (id) => {
   expandedId.value = expandedId.value === id ? null : id
 }
 
+const refreshFavoriteChampionships = () => {
+  favoriteChampionshipIds.value = getFavoriteChampionshipIds()
+}
+
+const isFavoriteChampionshipCard = (championship) => {
+  const id = buildChampionshipId(championship)
+  if (!id) return false
+  return favoriteChampionshipIds.value.includes(String(id))
+}
+
+const toggleFavoriteChampionshipCard = (championship) => {
+  toggleFavoriteChampionship(championship)
+  refreshFavoriteChampionships()
+  favoritePulseTokens.value = { ...favoritePulseTokens.value, [championship.uid]: Date.now() }
+}
+
 const formatDateRange = (beginAt, endAt) => {
   if (!beginAt && !endAt) return 'Data indefinida'
 
@@ -1162,6 +1190,8 @@ const resolvePendingBracketQuery = async () => {
 }
 
 onMounted(async () => {
+  window.addEventListener('cs2-preferences-updated', refreshFavoriteChampionships)
+  refreshFavoriteChampionships()
   try {
     loading.value = true
     applyRouteQueryToState(route.query)
@@ -1177,6 +1207,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('cs2-preferences-updated', refreshFavoriteChampionships)
 })
 
 const ensureGlobalSearchDataset = async () => {
@@ -1452,6 +1486,18 @@ watch(
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.favorite-champ-btn {
+  border: 1px solid rgba(255, 216, 107, 0.5);
+  background: rgba(255, 216, 107, 0.12);
+  color: #ffefbd;
+  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .tournament-status {

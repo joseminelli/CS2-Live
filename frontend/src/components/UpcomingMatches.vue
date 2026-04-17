@@ -34,6 +34,13 @@
         Quando voce pesquisa, o sistema busca em todas as partidas previstas para os proximos 30 dias.
       </p>
     </div>
+
+    <div v-if="errorMessage" class="error-banner">
+      <p>{{ errorMessage }}</p>
+      <button class="retry-btn" @click="fetchMatches(true)">Tentar novamente</button>
+    </div>
+
+    <div v-if="staleWarning" class="warning-banner">{{ staleWarning }}</div>
     
     <div v-if="loading || globalSearchLoading" class="loading-state">
       <div class="spinner"></div>
@@ -72,6 +79,11 @@
               <div v-else class="team-logo-fallback">?</div>
             </button>
             <h3 class="team-name">{{ getTeamName(match.opponents[0]) }}</h3>
+            <button class="favorite-btn" type="button" @click="toggleFavoriteTeamBySide(match, 0)">
+              <span class="favorite-burst" :key="favoritePulseTokens[match.opponents[0]?.opponent?.id] || 0">
+                {{ isFavoriteTeamBySide(match, 0) ? '★' : '☆' }}
+              </span>
+            </button>
           </div>
           
           <div class="match-center">
@@ -81,6 +93,11 @@
           
           <div class="team-info team-right">
             <h3 class="team-name">{{ getTeamName(match.opponents[1]) }}</h3>
+            <button class="favorite-btn" type="button" @click="toggleFavoriteTeamBySide(match, 1)">
+              <span class="favorite-burst" :key="favoritePulseTokens[match.opponents[1]?.opponent?.id] || 0">
+                {{ isFavoriteTeamBySide(match, 1) ? '★' : '☆' }}
+              </span>
+            </button>
             <button class="team-logo-btn" type="button" @click="openTeamModal(match.opponents[1]?.opponent)">
               <img 
                 v-if="match.opponents[1]?.opponent?.image_url" 
@@ -110,18 +127,21 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { matchesAPI } from '../api.js'
 import { getCompetitionName, getPhaseName, getTeamName } from '../utils/matchDisplay.js'
 import { getCompetitionPriority } from '../utils/matchDisplay.js'
 import TeamInfoModal from './TeamInfoModal.vue'
+import { isFavoriteTeam, toggleFavoriteTeam } from '../services/preferences.js'
 
 const route = useRoute()
 const router = useRouter()
 
 const matches = ref([])
 const loading = ref(true)
+const errorMessage = ref('')
+const staleWarning = ref('')
 const searchQuery = ref('')
 const sortBy = ref('importance-date')
 const currentPage = ref(1)
@@ -134,6 +154,8 @@ const globalSearchLoading = ref(false)
 const hasGlobalSearchDataset = ref(false)
 const isApplyingRouteQuery = ref(false)
 const pendingTeamToken = ref('')
+const favoriteVersion = ref(0)
+const favoritePulseTokens = ref({})
 const SEARCH_WINDOW_DAYS = 30
 const GLOBAL_SEARCH_PAGE_SIZE = 50
 const GLOBAL_SEARCH_MAX_PAGES = 8
@@ -147,6 +169,24 @@ const sortOptions = [
 
 const allowedSortKeys = new Set(sortOptions.map((option) => option.key))
 
+const refreshFavoriteState = () => {
+  favoriteVersion.value += 1
+}
+
+const isFavoriteTeamBySide = (match, sideIndex) => {
+  favoriteVersion.value
+  const team = match?.opponents?.[sideIndex]?.opponent
+  return isFavoriteTeam(team)
+}
+
+const toggleFavoriteTeamBySide = (match, sideIndex) => {
+  const team = match?.opponents?.[sideIndex]?.opponent
+  if (!team?.id) return
+  toggleFavoriteTeam(team)
+  refreshFavoriteState()
+  favoritePulseTokens.value = { ...favoritePulseTokens.value, [team.id]: Date.now() }
+}
+
 const formatDate = (date) => {
   if (!date) return 'TBD'
   const d = new Date(date)
@@ -158,13 +198,9 @@ const formatDate = (date) => {
   })
 }
 
-const getCompetition = (match) => {
-  return getCompetitionName(match)
-}
+const getCompetition = (match) => getCompetitionName(match)
 
-const getPhase = (match) => {
-  return getPhaseName(match)
-}
+const getPhase = (match) => getPhaseName(match)
 
 const getMatchType = (match) => {
   return match.match_type === 'best_of_three' ? 'BO3' : match.match_type === 'best_of_five' ? 'BO5' : 'BO1'
@@ -242,6 +278,11 @@ const syncRouteQueryFromState = async () => {
   await router.replace({ query: nextQuery })
 }
 
+const parsePage = (value) => {
+  const parsed = Number.parseInt(value, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+}
+
 const applyRouteQueryToState = (query) => {
   isApplyingRouteQuery.value = true
 
@@ -288,10 +329,7 @@ const followMatch = (match) => {
   }
 
   const q = getCompetition(match)
-  router.push({
-    name: 'tournaments',
-    query: q ? { q } : {}
-  })
+  router.push({ name: 'tournaments', query: q ? { q } : {} })
 }
 
 const filteredMatches = computed(() => {
@@ -300,38 +338,36 @@ const filteredMatches = computed(() => {
     : matches.value
 
   let result = baseData.filter(hasDefinedTeams)
-  
+
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    result = result.filter(m => 
-      m.opponents[0]?.opponent?.name?.toLowerCase().includes(query) ||
-      m.opponents[1]?.opponent?.name?.toLowerCase().includes(query) ||
-      getCompetition(m).toLowerCase().includes(query) ||
-      getPhase(m).toLowerCase().includes(query) ||
-      (m.league?.name || '').toLowerCase().includes(query) ||
-      (m.serie?.full_name || m.serie?.name || '').toLowerCase().includes(query) ||
-      (m.tournament?.full_name || m.tournament?.name || '').toLowerCase().includes(query)
+    result = result.filter((m) =>
+      m.opponents[0]?.opponent?.name?.toLowerCase().includes(query)
+      || m.opponents[1]?.opponent?.name?.toLowerCase().includes(query)
+      || getCompetition(m).toLowerCase().includes(query)
+      || getPhase(m).toLowerCase().includes(query)
+      || (m.league?.name || '').toLowerCase().includes(query)
+      || (m.serie?.full_name || m.serie?.name || '').toLowerCase().includes(query)
+      || (m.tournament?.full_name || m.tournament?.name || '').toLowerCase().includes(query)
     )
   }
 
   if (sortBy.value === 'league') {
-    result = [...result].sort((a, b) => 
+    result = [...result].sort((a, b) =>
       getCompetitionPriority(b) - getCompetitionPriority(a) || (a.league?.name || '').localeCompare(b.league?.name || '')
     )
   } else if (sortBy.value === 'team') {
-    result = [...result].sort((a, b) => 
+    result = [...result].sort((a, b) =>
       getCompetitionPriority(b) - getCompetitionPriority(a) || (a.opponents[0]?.opponent?.name || '').localeCompare(b.opponents[0]?.opponent?.name || '')
     )
   } else if (sortBy.value === 'importance-date') {
-    result = [...result].sort((a, b) => 
+    result = [...result].sort((a, b) =>
       getCompetitionPriority(b) - getCompetitionPriority(a) || new Date(a.scheduled_at || 0) - new Date(b.scheduled_at || 0)
     )
   } else {
-    result = [...result].sort((a, b) => 
-      new Date(a.scheduled_at || 0) - new Date(b.scheduled_at || 0)
-    )
+    result = [...result].sort((a, b) => new Date(a.scheduled_at || 0) - new Date(b.scheduled_at || 0))
   }
-  
+
   return result
 })
 
@@ -375,7 +411,56 @@ const ensureGlobalSearchDataset = async () => {
   }
 }
 
+const fetchMatches = async (forceRefresh = false) => {
+  loading.value = true
+  errorMessage.value = ''
+  staleWarning.value = ''
+
+  try {
+    const response = await matchesAPI.getUpcoming({
+      all: false,
+      per_page: pageSize,
+      page: currentPage.value
+    }, { forceRefresh })
+
+    const raw = Array.isArray(response.data) ? response.data : []
+    matches.value = [...raw].sort((a, b) =>
+      getCompetitionPriority(b) - getCompetitionPriority(a)
+      || new Date(a.scheduled_at || 0) - new Date(b.scheduled_at || 0)
+    )
+    hasNextPage.value = matches.value.length === pageSize
+
+    if (response.config?.stale) {
+      staleWarning.value = response.config.warning || 'Mostrando ultimo dado em cache.'
+    }
+
+    const token = pendingTeamToken.value || String(route.query.team || '').trim()
+    if (token) {
+      const team = findTeamByToken(token)
+      if (team) {
+        isApplyingRouteQuery.value = true
+        try {
+          await openTeamModal(team, false)
+        } finally {
+          isApplyingRouteQuery.value = false
+        }
+        pendingTeamToken.value = ''
+      }
+    }
+  } catch (error) {
+    errorMessage.value = error?.userMessage || 'API fora do ar. Tente novamente em instantes.'
+  } finally {
+    loading.value = false
+  }
+}
+
+const goToPage = (page) => {
+  currentPage.value = parsePage(page)
+  syncRouteQueryFromState()
+}
+
 onMounted(async () => {
+  window.addEventListener('cs2-preferences-updated', refreshFavoriteState)
   try {
     applyRouteQueryToState(route.query)
     if (searchQuery.value.trim()) {
@@ -389,51 +474,14 @@ onMounted(async () => {
   }
 })
 
-const parsePage = (value) => {
-  const parsed = Number.parseInt(value, 10)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
-}
-
-const syncPageFromUrl = () => {
-  currentPage.value = parsePage(route.query.page)
-}
-
-const fetchMatches = async () => {
-  loading.value = true
-  const response = await matchesAPI.getUpcoming({
-    all: false,
-    per_page: pageSize,
-    page: currentPage.value
-  })
-  matches.value = response.data || []
-  hasNextPage.value = matches.value.length === pageSize
-
-  const token = pendingTeamToken.value || String(route.query.team || '').trim()
-  if (token) {
-    const team = findTeamByToken(token)
-    if (team) {
-      isApplyingRouteQuery.value = true
-      try {
-        await openTeamModal(team, false)
-      } finally {
-        isApplyingRouteQuery.value = false
-      }
-      pendingTeamToken.value = ''
-    }
-  }
-
-  loading.value = false
-}
-
-const goToPage = (page) => {
-  currentPage.value = parsePage(page)
-  syncRouteQueryFromState()
-}
+onUnmounted(() => {
+  window.removeEventListener('cs2-preferences-updated', refreshFavoriteState)
+})
 
 watch(
   () => route.query.page,
   async () => {
-    syncPageFromUrl()
+    currentPage.value = parsePage(route.query.page)
     await fetchMatches()
   }
 )
@@ -670,6 +718,34 @@ watch(
   text-align: center;
 }
 
+.error-banner,
+.warning-banner {
+  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 107, 107, 0.34);
+  background: rgba(255, 107, 107, 0.09);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.warning-banner {
+  border-color: rgba(255, 206, 84, 0.4);
+  background: rgba(255, 206, 84, 0.1);
+}
+
+.retry-btn {
+  border: 1px solid rgba(255, 107, 107, 0.6);
+  background: rgba(255, 107, 107, 0.2);
+  color: #ffe9e9;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .empty-icon {
   font-size: 80px;
   opacity: 0.3;
@@ -706,6 +782,15 @@ watch(
   border-color: rgba(64, 224, 208, 0.4);
   background: linear-gradient(135deg, rgba(64, 224, 208, 0.12) 0%, rgba(30, 144, 255, 0.12) 100%);
   transform: translateY(-2px);
+}
+
+.favorite-btn {
+  border: 0;
+  background: transparent;
+  color: #ffd86b;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
 }
 
 .card-top {

@@ -20,6 +20,40 @@
           </button>
         </nav>
 
+        <div class="global-search" @keydown.esc="closeSearch">
+          <input
+            v-model="searchQuery"
+            class="global-search-input"
+            type="text"
+            placeholder="Busca global: time, campeonato ou partida..."
+            @focus="openSearch"
+          >
+          <span class="global-search-icon">⌕</span>
+
+          <div v-if="searchOpen" class="search-panel">
+            <div class="search-shortcuts">
+              <button class="shortcut-btn" @click="quickGo('live')">/live</button>
+              <button class="shortcut-btn" @click="quickGo('upcoming')">/proximos</button>
+              <button class="shortcut-btn" @click="quickGo('recent')">/resultados</button>
+              <button class="shortcut-btn" @click="quickGo('tournaments')">/torneios</button>
+            </div>
+
+            <p v-if="searchLoading" class="search-empty">Buscando...</p>
+            <p v-else-if="searchQuery.trim() && searchResults.length === 0" class="search-empty">Nenhum resultado encontrado.</p>
+
+            <button
+              v-for="item in searchResults"
+              :key="item.id"
+              class="search-result"
+              @click="selectSearchResult(item)"
+            >
+              <span class="result-type">{{ getResultTypeLabel(item.type) }}</span>
+              <span class="result-title">{{ item.title }}</span>
+              <span class="result-subtitle">{{ item.subtitle }}</span>
+            </button>
+          </div>
+        </div>
+
         <div class="mobile-header-chip">
           <span class="chip-dot" />
           <span class="chip-label">{{ activeLabel }}</span>
@@ -45,11 +79,17 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { searchGlobal } from '../services/globalSearch.js'
 
 const isScrolled = ref(false)
 const activeView = ref('dashboard')
+const searchOpen = ref(false)
+const searchQuery = ref('')
+const searchResults = ref([])
+const searchLoading = ref(false)
 const route = useRoute()
 const router = useRouter()
+let searchDebounceTimer = null
 
 const navItems = [
   { id: 'dashboard', label: 'Inicio', mobileLabel: 'Home', icon: '🏠' },
@@ -72,6 +112,75 @@ const selectView = async (viewId) => {
   }
 }
 
+const openSearch = () => {
+  searchOpen.value = true
+}
+
+const closeSearch = () => {
+  searchOpen.value = false
+}
+
+const getResultTypeLabel = (type) => {
+  if (type === 'team') return 'TIME'
+  if (type === 'championship') return 'TORNEIO'
+  if (type === 'live') return 'LIVE'
+  if (type === 'upcoming') return 'PROXIMO'
+  if (type === 'recent') return 'RESULTADO'
+  return 'ITEM'
+}
+
+const quickGo = async (name) => {
+  closeSearch()
+  await selectView(name)
+}
+
+const selectSearchResult = async (item) => {
+  closeSearch()
+
+  if (item.type === 'team') {
+    await router.push({ name: 'upcoming', query: { q: item.title } })
+    return
+  }
+
+  if (item.type === 'championship') {
+    await router.push({ name: 'tournaments', query: { q: item.title } })
+    return
+  }
+
+  if (item.type === 'live') {
+    const token = item.payload?.opponents?.[0]?.opponent?.id
+      || item.payload?.opponents?.[0]?.opponent?.slug
+      || item.payload?.opponents?.[0]?.opponent?.name
+      || ''
+    await router.push({ name: 'live', query: token ? { team: String(token) } : {} })
+    return
+  }
+
+  if (item.type === 'upcoming') {
+    await router.push({ name: 'upcoming', query: { q: item.title } })
+    return
+  }
+
+  await router.push({ name: 'recent', query: { q: item.title } })
+}
+
+const runSearch = async (value) => {
+  const query = String(value || '').trim()
+  if (!query) {
+    searchResults.value = []
+    return
+  }
+
+  searchLoading.value = true
+  try {
+    searchResults.value = await searchGlobal(query)
+  } catch (_) {
+    searchResults.value = []
+  } finally {
+    searchLoading.value = false
+  }
+}
+
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
   activeView.value = route.name || 'dashboard'
@@ -87,7 +196,24 @@ watch(
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+  if (searchDebounceTimer) {
+    window.clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = null
+  }
 })
+
+watch(
+  () => searchQuery.value,
+  (value) => {
+    if (searchDebounceTimer) {
+      window.clearTimeout(searchDebounceTimer)
+    }
+
+    searchDebounceTimer = window.setTimeout(() => {
+      runSearch(value)
+    }, 240)
+  }
+)
 </script>
 
 <style scoped>
@@ -95,7 +221,7 @@ onUnmounted(() => {
   position: fixed;
   top: 14px;
   left: 50%;
-  width: min(94vw, 1240px);
+  width: min(94vw, 1400px);
   transform: translateX(-50%);
   z-index: 50;
   border-radius: 14px;
@@ -158,6 +284,118 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 30px;
+}
+
+.global-search {
+  position: relative;
+  min-width: 290px;
+  width: min(30vw, 420px);
+}
+
+.global-search-input {
+  width: 100%;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(64, 224, 208, 0.26);
+  background: rgba(64, 224, 208, 0.07);
+  color: #e9f7f4;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 12px 0 34px;
+}
+
+.global-search-input:focus {
+  outline: none;
+  border-color: rgba(64, 224, 208, 0.58);
+  box-shadow: 0 0 0 2px rgba(64, 224, 208, 0.15);
+}
+
+.global-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(64, 224, 208, 0.78);
+  font-size: 13px;
+}
+
+.search-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+  border: 1px solid rgba(64, 224, 208, 0.3);
+  border-radius: 12px;
+  background: rgba(1, 10, 8, 0.96);
+  backdrop-filter: blur(10px);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+  z-index: 20;
+}
+
+.search-shortcuts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.shortcut-btn {
+  border: 1px solid rgba(64, 224, 208, 0.24);
+  background: rgba(64, 224, 208, 0.08);
+  color: #c9f9f1;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.search-empty {
+  margin: 0;
+  color: rgba(233, 247, 244, 0.75);
+  font-size: 12px;
+  padding: 4px 2px;
+}
+
+.search-result {
+  border: 1px solid rgba(64, 224, 208, 0.14);
+  background: rgba(64, 224, 208, 0.04);
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'type title'
+    'type subtitle';
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: center;
+  text-align: left;
+  padding: 8px;
+  color: #e9f7f4;
+  cursor: pointer;
+}
+
+.result-type {
+  grid-area: type;
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(64, 224, 208, 0.9);
+}
+
+.result-title {
+  grid-area: title;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.result-subtitle {
+  grid-area: subtitle;
+  font-size: 11px;
+  color: rgba(233, 247, 244, 0.72);
 }
 
 .nav-item {
@@ -263,6 +501,12 @@ onUnmounted(() => {
 
   .desktop-nav {
     display: none;
+  }
+
+  .global-search {
+    width: 100%;
+    min-width: 0;
+    max-width: 420px;
   }
 
   .mobile-header-chip {
