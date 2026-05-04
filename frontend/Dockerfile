@@ -18,9 +18,30 @@ RUN npm run build
 # Runtime stage - using nginx to serve
 FROM nginx:alpine
 
-# Copy nginx config
-RUN rm /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Create nginx config
+RUN rm /etc/nginx/conf.d/default.conf && \
+    echo 'server {\n\
+    listen 3000;\n\
+    server_name _;\n\
+    gzip on;\n\
+    gzip_types text/plain text/css text/javascript application/javascript application/json;\n\
+    gzip_min_length 1000;\n\
+    location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {\n\
+        expires 30d;\n\
+        add_header Cache-Control "public, immutable";\n\
+    }\n\
+    location = / {\n\
+        try_files $uri $uri/ /index.html;\n\
+    }\n\
+    location / {\n\
+        alias /usr/share/nginx/html/;\n\
+        try_files $uri $uri/ /index.html;\n\
+        add_header Cache-Control "public, max-age=0";\n\
+    }\n\
+    add_header X-Frame-Options "SAMEORIGIN" always;\n\
+    add_header X-Content-Type-Options "nosniff" always;\n\
+    add_header X-XSS-Protection "1; mode=block" always;\n\
+}' > /etc/nginx/conf.d/default.conf
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
