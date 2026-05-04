@@ -21,7 +21,7 @@ FROM nginx:alpine
 # Create nginx config
 RUN rm /etc/nginx/conf.d/default.conf && \
     echo 'server {\n\
-    listen 3000;\n\
+    listen 5000;\n\
     server_name _;\n\
     gzip on;\n\
     gzip_types text/plain text/css text/javascript application/javascript application/json;\n\
@@ -47,11 +47,11 @@ RUN rm /etc/nginx/conf.d/default.conf && \
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Expose port
-EXPOSE 3000
+EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:3000/ || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:5000/ || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
