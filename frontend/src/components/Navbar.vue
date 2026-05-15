@@ -20,7 +20,7 @@
           </button>
         </nav>
 
-        <div class="global-search" @keydown.esc="closeSearch">
+        <div ref="searchRoot" class="global-search" @keydown.esc="closeSearch">
           <input
             v-model="searchQuery"
             class="global-search-input"
@@ -87,9 +87,11 @@ const searchOpen = ref(false)
 const searchQuery = ref('')
 const searchResults = ref([])
 const searchLoading = ref(false)
+const searchRoot = ref(null)
 const route = useRoute()
 const router = useRouter()
 let searchDebounceTimer = null
+let removeDocumentClickListener = null
 
 const navItems = [
   { id: 'dashboard', label: 'Inicio', mobileLabel: 'Home', icon: '🏠' },
@@ -106,6 +108,7 @@ const handleScroll = () => {
 }
 
 const selectView = async (viewId) => {
+  closeSearch()
   activeView.value = viewId
   if (route.name !== viewId) {
     await router.push({ name: viewId })
@@ -184,6 +187,17 @@ const runSearch = async (value) => {
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
   activeView.value = route.name || 'dashboard'
+
+  const handleDocumentClick = (event) => {
+    if (!searchOpen.value) return
+    if (searchRoot.value?.contains(event.target)) return
+    closeSearch()
+  }
+
+  document.addEventListener('click', handleDocumentClick)
+  removeDocumentClickListener = () => {
+    document.removeEventListener('click', handleDocumentClick)
+  }
 })
 
 watch(
@@ -196,6 +210,10 @@ watch(
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+  if (removeDocumentClickListener) {
+    removeDocumentClickListener()
+    removeDocumentClickListener = null
+  }
   if (searchDebounceTimer) {
     window.clearTimeout(searchDebounceTimer)
     searchDebounceTimer = null

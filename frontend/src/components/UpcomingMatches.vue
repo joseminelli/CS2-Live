@@ -208,6 +208,8 @@ const getMatchType = (match) => {
 
 const normalizeText = (value) => String(value || '').trim()
 
+const normalizeSearchText = (value) => normalizeText(value).toLowerCase()
+
 const isDefinedTeamName = (value) => {
   const name = normalizeText(value)
   if (!name) return false
@@ -218,6 +220,46 @@ const hasDefinedTeams = (match) => {
   const teamA = getTeamName(match?.opponents?.[0])
   const teamB = getTeamName(match?.opponents?.[1])
   return isDefinedTeamName(teamA) && isDefinedTeamName(teamB)
+}
+
+const getMatchSearchPhrases = (match) => {
+  const teamA = normalizeSearchText(getTeamName(match?.opponents?.[0]))
+  const teamB = normalizeSearchText(getTeamName(match?.opponents?.[1]))
+
+  if (!teamA || !teamB) return []
+
+  return [
+    `${teamA} vs ${teamB}`,
+    `${teamB} vs ${teamA}`,
+    `${teamA} ${teamB}`,
+    `${teamB} ${teamA}`
+  ]
+}
+
+const matchMatchesSearchQuery = (match, query) => {
+  if (!query) return true
+
+  const normalizedQuery = normalizeSearchText(query)
+  if (!normalizedQuery) return true
+
+  const competition = normalizeSearchText(getCompetition(match))
+  const phase = normalizeSearchText(getPhase(match))
+  const leagueName = normalizeSearchText(match?.league?.name)
+  const serieName = normalizeSearchText(match?.serie?.full_name || match?.serie?.name)
+  const tournamentName = normalizeSearchText(match?.tournament?.full_name || match?.tournament?.name)
+  const teamA = normalizeSearchText(getTeamName(match?.opponents?.[0]))
+  const teamB = normalizeSearchText(getTeamName(match?.opponents?.[1]))
+
+  return [
+    teamA,
+    teamB,
+    competition,
+    phase,
+    leagueName,
+    serieName,
+    tournamentName,
+    ...getMatchSearchPhrases(match)
+  ].some((text) => text.includes(normalizedQuery))
 }
 
 const normalizeTeamToken = (value) => String(value || '').trim().toLowerCase()
@@ -340,16 +382,7 @@ const filteredMatches = computed(() => {
   let result = baseData.filter(hasDefinedTeams)
 
   if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter((m) =>
-      m.opponents[0]?.opponent?.name?.toLowerCase().includes(query)
-      || m.opponents[1]?.opponent?.name?.toLowerCase().includes(query)
-      || getCompetition(m).toLowerCase().includes(query)
-      || getPhase(m).toLowerCase().includes(query)
-      || (m.league?.name || '').toLowerCase().includes(query)
-      || (m.serie?.full_name || m.serie?.name || '').toLowerCase().includes(query)
-      || (m.tournament?.full_name || m.tournament?.name || '').toLowerCase().includes(query)
-    )
+    result = result.filter((m) => matchMatchesSearchQuery(m, searchQuery.value))
   }
 
   if (sortBy.value === 'league') {

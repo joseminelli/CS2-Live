@@ -183,7 +183,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { dashboardAPI } from '../api.js'
+import { dashboardAPI, matchesAPI } from '../api.js'
 import { getCompetitionPriority } from '../utils/matchDisplay.js'
 import TeamInfoModal from './TeamInfoModal.vue'
 import {
@@ -217,6 +217,10 @@ const tournamentCount = ref(0)
 const teamModalOpen = ref(false)
 const selectedTeam = ref({})
 const favoritePulseTokens = ref({})
+
+const PERSONALIZED_UPCOMING_PAGE_SIZE = 25
+const PERSONALIZED_UPCOMING_MAX_PAGES = 8
+const PERSONALIZED_UPCOMING_MAX_DAYS = 120
 
 const goToRoute = (routeName) => {
   router.push({ name: routeName })
@@ -337,6 +341,37 @@ const formatDateTime = (date) => {
   })
 }
 
+const loadPersonalizedUpcomingMatches = async () => {
+  const collected = []
+  const upperLimit = Date.now() + (PERSONALIZED_UPCOMING_MAX_DAYS * 24 * 60 * 60 * 1000)
+
+  for (let page = 1; page <= PERSONALIZED_UPCOMING_MAX_PAGES; page += 1) {
+    const response = await matchesAPI.getUpcoming({
+      all: false,
+      per_page: PERSONALIZED_UPCOMING_PAGE_SIZE,
+      page,
+      sort: 'scheduled_at'
+    })
+
+    const items = Array.isArray(response.data) ? response.data : []
+    if (items.length === 0) break
+
+    items.forEach((match) => {
+      const timestamp = Date.parse(match?.scheduled_at)
+      if (Number.isFinite(timestamp) && timestamp <= upperLimit) {
+        collected.push(match)
+      }
+    })
+
+    const lastDate = Date.parse(items[items.length - 1]?.scheduled_at)
+    if (!Number.isFinite(lastDate) || lastDate > upperLimit || items.length < PERSONALIZED_UPCOMING_PAGE_SIZE) {
+      break
+    }
+  }
+
+  return sortByCompetitionImportance(collected)
+}
+
 const loadDashboardData = async (options = {}) => {
   try {
     loading.value = true
@@ -354,8 +389,17 @@ const loadDashboardData = async (options = {}) => {
     const usePersonalized = personalizedHome.value
       && (favoriteTeamIds.value.length > 0 || favoriteChampionshipIds.value.length > 0)
 
+    let personalizedUpcoming = upcoming
+    if (usePersonalized) {
+      try {
+        personalizedUpcoming = await loadPersonalizedUpcomingMatches()
+      } catch (_) {
+        personalizedUpcoming = upcoming
+      }
+    }
+
     liveMatches.value = usePersonalized ? live.filter(isFavoriteContext) : live
-    upcomingMatches.value = usePersonalized ? upcoming.filter(isFavoriteContext) : upcoming
+    upcomingMatches.value = usePersonalized ? personalizedUpcoming.filter(isFavoriteContext) : upcoming
     recentMatches.value = usePersonalized ? recent.filter(isFavoriteContext) : recent
     liveCount.value = summary.liveCount ?? liveMatches.value.length
     upcomingCount.value = summary.upcomingCount ?? upcomingMatches.value.length
