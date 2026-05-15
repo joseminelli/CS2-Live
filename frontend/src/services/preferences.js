@@ -64,9 +64,21 @@ export const getFavoriteTeamIds = () => {
   return Array.isArray(list) ? list.map((item) => String(item)) : []
 }
 
+export const setFavoriteTeamIds = (teamIds) => {
+  const next = Array.isArray(teamIds) ? teamIds.map((item) => String(item)).filter(Boolean) : []
+  writeJson(FAVORITE_TEAMS_KEY, Array.from(new Set(next)))
+  emitChange()
+}
+
 export const getFavoriteChampionshipIds = () => {
   const list = readJson(FAVORITE_CHAMPIONSHIPS_KEY, [])
   return Array.isArray(list) ? list.map((item) => String(item)) : []
+}
+
+export const setFavoriteChampionshipIds = (championshipIds) => {
+  const next = Array.isArray(championshipIds) ? championshipIds.map((item) => String(item)).filter(Boolean) : []
+  writeJson(FAVORITE_CHAMPIONSHIPS_KEY, Array.from(new Set(next)))
+  emitChange()
 }
 
 export const isPersonalizedHomeEnabled = () => {
@@ -133,6 +145,16 @@ export const isFavoriteChampionship = (championship) => {
 
 export const clearAllFavorites = () => {
   writeJson(FAVORITE_TEAMS_KEY, [])
+  writeJson(FAVORITE_CHAMPIONSHIPS_KEY, [])
+  emitChange()
+}
+
+export const clearFavoriteTeams = () => {
+  writeJson(FAVORITE_TEAMS_KEY, [])
+  emitChange()
+}
+
+export const clearFavoriteChampionships = () => {
   writeJson(FAVORITE_CHAMPIONSHIPS_KEY, [])
   emitChange()
 }

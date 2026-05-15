@@ -4,6 +4,7 @@ import LiveMatches from './components/LiveMatches.vue'
 import UpcomingMatches from './components/UpcomingMatches.vue'
 import RecentMatches from './components/RecentMatches.vue'
 import Tournaments from './components/Tournaments.vue'
+import Favorites from './components/Favorites.vue'
 
 const routes = [
   { path: '/', redirect: { name: 'dashboard' } },
@@ -12,6 +13,7 @@ const routes = [
   { path: '/proximos', alias: ['/upcoming'], name: 'upcoming', component: UpcomingMatches, meta: { title: 'Proximos Jogos' } },
   { path: '/resultados', alias: ['/recent'], name: 'recent', component: RecentMatches, meta: { title: 'Resultados' } },
   { path: '/torneios', alias: ['/tournaments'], name: 'tournaments', component: Tournaments, meta: { title: 'Torneios' } },
+  { path: '/favoritos', alias: ['/favorites'], name: 'favorites', component: Favorites, meta: { title: 'Favoritos' } },
   { path: '/times', redirect: { name: 'tournaments' } },
   { path: '/:pathMatch(.*)*', name: 'not-found', redirect: { name: 'dashboard' } }
 ]
