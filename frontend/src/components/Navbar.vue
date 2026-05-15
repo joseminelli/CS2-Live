@@ -79,11 +79,6 @@
       </div>
     </header>
 
-    <div class="mobile-nav-hint">
-      <span>Navegação rápida</span>
-      <span>Toque em uma aba para mudar de área</span>
-    </div>
-
     <nav class="mobile-dock" aria-label="Navegacao mobile">
       <button v-for="item in navItems" :key="item.id" @click="selectView(item.id)" class="dock-item"
         :class="{ active: activeView === item.id }" :aria-current="activeView === item.id ? 'page' : undefined"
