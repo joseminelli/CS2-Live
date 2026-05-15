@@ -47,10 +47,7 @@
           </Transition>
         </div>
 
-        <div class="mobile-header-chip">
-          <span class="chip-dot" />
-          <span class="chip-label">{{ activeLabel }}</span>
-        </div>
+        
         <div ref="settingsRoot" class="settings-root">
           <button class="settings-btn" @click="toggleSettings" aria-label="Abrir configurações" title="Configurações">
             <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" stroke-width="3"
@@ -581,21 +578,6 @@ watch(
   display: none;
 }
 
-.mobile-header-chip {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 7px 12px;
-  border: 1px solid rgba(64, 224, 208, 0.28);
-  background: rgba(64, 224, 208, 0.08);
-  color: #cbf8f2;
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
 .mobile-nav-hint {
   display: none;
 }
@@ -730,9 +712,6 @@ watch(
     max-width: 420px;
   }
 
-  .mobile-header-chip {
-    display: inline-flex;
-  }
 
   .mobile-nav-hint {
     display: flex;
@@ -829,10 +808,6 @@ watch(
     padding: 0 10px;
   }
 
-  .mobile-header-chip {
-    padding: 6px 10px;
-    font-size: 10px;
-  }
 
   .mobile-dock {
     bottom: 10px;
