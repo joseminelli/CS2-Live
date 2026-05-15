@@ -30,28 +30,33 @@
           >
           <span class="global-search-icon">⌕</span>
 
-          <div v-if="searchOpen" class="search-panel">
-            <div class="search-shortcuts">
-              <button class="shortcut-btn" @click="quickGo('live')">/live</button>
-              <button class="shortcut-btn" @click="quickGo('upcoming')">/proximos</button>
-              <button class="shortcut-btn" @click="quickGo('recent')">/resultados</button>
-              <button class="shortcut-btn" @click="quickGo('tournaments')">/torneios</button>
+          <Transition name="search-panel">
+            <div v-if="searchOpen" class="search-panel">
+              <div class="search-shortcuts">
+                <button class="shortcut-btn" @click="quickGo('live')">/live</button>
+                <button class="shortcut-btn" @click="quickGo('upcoming')">/proximos</button>
+                <button class="shortcut-btn" @click="quickGo('recent')">/resultados</button>
+                <button class="shortcut-btn" @click="quickGo('tournaments')">/torneios</button>
+              </div>
+
+              <p v-if="searchLoading" class="search-empty">Buscando...</p>
+              <p v-else-if="searchQuery.trim() && searchResults.length === 0" class="search-empty">Nenhum resultado encontrado.</p>
+
+              <TransitionGroup tag="div" name="search-result" class="search-results-list">
+                <button
+                  v-for="(item, index) in searchResults"
+                  :key="item.id"
+                  class="search-result"
+                  :style="{ '--search-result-index': index }"
+                  @click="selectSearchResult(item)"
+                >
+                  <span class="result-type">{{ getResultTypeLabel(item.type) }}</span>
+                  <span class="result-title">{{ item.title }}</span>
+                  <span class="result-subtitle">{{ item.subtitle }}</span>
+                </button>
+              </TransitionGroup>
             </div>
-
-            <p v-if="searchLoading" class="search-empty">Buscando...</p>
-            <p v-else-if="searchQuery.trim() && searchResults.length === 0" class="search-empty">Nenhum resultado encontrado.</p>
-
-            <button
-              v-for="item in searchResults"
-              :key="item.id"
-              class="search-result"
-              @click="selectSearchResult(item)"
-            >
-              <span class="result-type">{{ getResultTypeLabel(item.type) }}</span>
-              <span class="result-title">{{ item.title }}</span>
-              <span class="result-subtitle">{{ item.subtitle }}</span>
-            </button>
-          </div>
+          </Transition>
         </div>
 
         <div class="mobile-header-chip">
@@ -355,6 +360,29 @@ watch(
   z-index: 20;
 }
 
+.search-panel-enter-active,
+.search-panel-leave-active {
+  transition:
+    opacity 180ms ease,
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 180ms ease;
+  transform-origin: top center;
+}
+
+.search-panel-enter-from,
+.search-panel-leave-to {
+  opacity: 0;
+  transform: translateY(-12px) scale(0.985);
+  filter: blur(3px);
+}
+
+.search-panel-enter-to,
+.search-panel-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
 .search-shortcuts {
   display: flex;
   gap: 6px;
@@ -379,6 +407,12 @@ watch(
   padding: 4px 2px;
 }
 
+.search-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .search-result {
   border: 1px solid rgba(64, 224, 208, 0.14);
   background: rgba(64, 224, 208, 0.04);
@@ -395,6 +429,37 @@ watch(
   padding: 8px;
   color: #e9f7f4;
   cursor: pointer;
+  transform-origin: top center;
+}
+
+.search-result-enter-active,
+.search-result-leave-active {
+  transition:
+    opacity 180ms ease,
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 180ms ease;
+}
+
+.search-result-enter-active {
+  transition-delay: calc(var(--search-result-index, 0) * 28ms);
+}
+
+.search-result-enter-from,
+.search-result-leave-to {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+  filter: blur(2px);
+}
+
+.search-result-enter-to,
+.search-result-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+.search-result-move {
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .result-type {
