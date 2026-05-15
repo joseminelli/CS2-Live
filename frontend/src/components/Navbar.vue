@@ -13,6 +13,8 @@
             @click="selectView(item.id)"
             class="nav-item"
             :class="{ active: activeView === item.id }"
+            :aria-current="activeView === item.id ? 'page' : undefined"
+            :title="item.label"
           >
             <span class="nav-index">{{ String(index + 1).padStart(2, '0') }}</span>
             <span class="nav-label">{{ item.label }}</span>
@@ -66,6 +68,11 @@
       </div>
     </header>
 
+    <div class="mobile-nav-hint">
+      <span>Navegação rápida</span>
+      <span>Toque em uma aba para mudar de área</span>
+    </div>
+
     <nav class="mobile-dock" aria-label="Navegacao mobile">
       <button
         v-for="item in navItems"
@@ -73,6 +80,8 @@
         @click="selectView(item.id)"
         class="dock-item"
         :class="{ active: activeView === item.id }"
+        :aria-current="activeView === item.id ? 'page' : undefined"
+        :title="item.label"
       >
         <span class="dock-icon">{{ item.icon }}</span>
         <span class="dock-label">{{ item.mobileLabel || item.label }}</span>
@@ -99,10 +108,10 @@ let searchDebounceTimer = null
 let removeDocumentClickListener = null
 
 const navItems = [
-  { id: 'dashboard', label: 'Inicio', mobileLabel: 'Home', icon: '🏠' },
-  { id: 'live', label: 'Ao Vivo', mobileLabel: 'Live', icon: '🔴' },
-  { id: 'upcoming', label: 'Próximos', mobileLabel: 'Prox', icon: '📅' },
-  { id: 'recent', label: 'Resultados', mobileLabel: 'Recentes', icon: '📊' },
+  { id: 'dashboard', label: 'Inicio', mobileLabel: 'Início', icon: '🏠' },
+  { id: 'live', label: 'Ao Vivo', mobileLabel: 'Ao vivo', icon: '🔴' },
+  { id: 'upcoming', label: 'Próximos', mobileLabel: 'Próximos', icon: '📅' },
+  { id: 'recent', label: 'Resultados', mobileLabel: 'Resultados', icon: '📊' },
   { id: 'tournaments', label: 'Torneios', mobileLabel: 'Torneios', icon: '🏆' }
 ]
 
@@ -548,6 +557,10 @@ watch(
   letter-spacing: 0.06em;
 }
 
+.mobile-nav-hint {
+  display: none;
+}
+
 .chip-dot {
   width: 8px;
   height: 8px;
@@ -596,6 +609,20 @@ watch(
     display: inline-flex;
   }
 
+  .mobile-nav-hint {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 8px;
+    padding: 0 4px 8px;
+    color: rgba(233, 247, 244, 0.62);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
   .mobile-dock {
     position: fixed;
     left: 50%;
@@ -626,7 +653,12 @@ watch(
     justify-content: center;
     gap: 4px;
     cursor: pointer;
-    transition: all 180ms ease;
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, color 180ms ease;
+  }
+
+  .dock-item:hover {
+    transform: translateY(-1px);
+    border-color: rgba(64, 224, 208, 0.28);
   }
 
   .dock-icon {
@@ -682,6 +714,11 @@ watch(
     padding: 8px;
     gap: 6px;
     border-radius: 14px;
+  }
+
+  .mobile-nav-hint {
+    margin-top: 6px;
+    padding-bottom: 6px;
   }
 
   .dock-item {

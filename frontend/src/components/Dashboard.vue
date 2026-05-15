@@ -26,6 +26,26 @@
       {{ staleWarning }}
     </div>
 
+    <div v-if="personalizedHome" class="personalized-banner">
+      <div class="personalized-banner-copy">
+        <p class="personalized-banner-kicker">Home personalizada</p>
+        <h2 class="personalized-banner-title">
+          {{ isPersonalizedScopeActive() ? 'Filtrando pelos seus favoritos' : 'Adicione favoritos para liberar este filtro' }}
+        </h2>
+        <p class="personalized-banner-text">
+          {{ isPersonalizedScopeActive()
+            ? 'Se aparecer vazio, significa apenas que ainda não há partidas dos times ou campeonatos salvos.'
+            : 'A home personalizada só mostra jogos dos seus favoritos. Sem favoritos, ela vai parecer vazia.' }}
+        </p>
+      </div>
+      <div class="personalized-banner-actions">
+        <button class="banner-action primary" @click="togglePersonalizedHome">
+          {{ isPersonalizedScopeActive() ? 'Ver home completa' : 'Desativar modo' }}
+        </button>
+        <button class="banner-action" @click="clearFavorites">Limpar favoritos</button>
+      </div>
+    </div>
+
     <div v-if="loading" class="stats-grid">
       <div v-for="n in 4" :key="`stat-skeleton-${n}`" class="stat-card stat-skeleton-card">
         <div class="stat-header">
@@ -96,7 +116,8 @@
         </div>
       </div>
       <div v-else-if="liveMatches.length === 0" class="empty-state">
-        <p>Nenhum jogo ao vivo no momento</p>
+        <p>{{ getEmptyStateMessage('live') }}</p>
+        <p v-if="isPersonalizedScopeActive" class="empty-hint">Tente marcar mais times ou campeonatos como favoritos.</p>
       </div>
       <div v-else class="matches-grid">
         <div v-for="match in liveMatches.slice(0, 3)" :key="match.id" class="live-match-card" role="button" tabindex="0"
@@ -160,7 +181,8 @@
         </div>
       </div>
       <div v-else-if="upcomingMatches.length === 0" class="empty-state">
-        <p>Nenhum jogo próximo agendado</p>
+        <p>{{ getEmptyStateMessage('upcoming') }}</p>
+        <p v-if="isPersonalizedScopeActive" class="empty-hint">A home personalizada mostra apenas favoritos. Adicione mais favoritos ou desative essa opção.</p>
       </div>
       <div v-else class="upcoming-list">
         <div v-for="match in upcomingMatches.slice(0, 5)" :key="match.id" class="upcoming-item" role="button"
@@ -341,6 +363,22 @@ const formatDateTime = (date) => {
   })
 }
 
+const isPersonalizedScopeActive = () => {
+  return personalizedHome.value && (favoriteTeamIds.value.length > 0 || favoriteChampionshipIds.value.length > 0)
+}
+
+const getEmptyStateMessage = (section) => {
+  if (!isPersonalizedScopeActive()) {
+    if (section === 'live') return 'Nenhum jogo ao vivo no momento'
+    if (section === 'upcoming') return 'Nenhum jogo próximo agendado'
+    return 'Nenhum jogo encontrado'
+  }
+
+  if (section === 'live') return 'Nenhum jogo ao vivo dos seus favoritos no momento'
+  if (section === 'upcoming') return 'Nenhum jogo favorito próximo encontrado'
+  return 'Nenhum resultado dos seus favoritos encontrado'
+}
+
 const loadPersonalizedUpcomingMatches = async () => {
   const collected = []
   const upperLimit = Date.now() + (PERSONALIZED_UPCOMING_MAX_DAYS * 24 * 60 * 60 * 1000)
@@ -474,6 +512,17 @@ onUnmounted(() => {
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.pref-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(64, 224, 208, 0.5);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.16);
+}
+
+.pref-btn:active {
+  transform: translateY(0);
 }
 
 .pref-btn.active {
@@ -547,7 +596,7 @@ onUnmounted(() => {
   border: 1px solid rgba(64, 224, 208, 0.2);
   border-radius: 12px;
   padding: 32px;
-  transition: all 0.3s ease;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
   position: relative;
   overflow: hidden;
   cursor: pointer;
@@ -568,6 +617,12 @@ onUnmounted(() => {
 .stat-card:hover {
   border-color: rgba(64, 224, 208, 0.4);
   background: linear-gradient(135deg, rgba(64, 224, 208, 0.12) 0%, rgba(30, 144, 255, 0.12) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+}
+
+.stat-card:active {
+  transform: translateY(0) scale(0.995);
 }
 
 .stat-card:focus-visible {
@@ -670,11 +725,18 @@ onUnmounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
 .section-action:hover {
   border-color: rgba(64, 224, 208, 0.6);
   background: rgba(64, 224, 208, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.14);
+}
+
+.section-action:active {
+  transform: translateY(0);
 }
 
 .section-title {
@@ -707,11 +769,20 @@ onUnmounted(() => {
   border: 2px solid rgba(255, 107, 107, 0.25);
   border-radius: 12px;
   padding: 32px;
-  transition: all 0.3s ease;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
   position: relative;
   overflow: hidden;
   cursor: pointer;
   isolation: isolate;
+}
+
+.live-match-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+}
+
+.live-match-card:active {
+  transform: translateY(0) scale(0.995);
 }
 
 .live-match-card::before {
@@ -975,13 +1046,89 @@ onUnmounted(() => {
   background: rgba(64, 224, 208, 0.05);
   border: 1px solid rgba(64, 224, 208, 0.15);
   border-radius: 10px;
-  transition: all 0.3s ease;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
   cursor: pointer;
 }
 
 .upcoming-item:hover {
   background: rgba(64, 224, 208, 0.08);
   border-color: rgba(64, 224, 208, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.14);
+}
+
+.upcoming-item:active {
+  transform: translateY(0) scale(0.995);
+}
+
+.personalized-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(64, 224, 208, 0.28);
+  background: linear-gradient(135deg, rgba(64, 224, 208, 0.1) 0%, rgba(30, 144, 255, 0.08) 100%);
+  box-shadow: inset 0 0 0 1px rgba(64, 224, 208, 0.08);
+}
+
+.personalized-banner-kicker {
+  margin: 0 0 4px;
+  color: rgba(64, 224, 208, 0.88);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.personalized-banner-title {
+  margin: 0 0 8px;
+  color: #eef7f5;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.personalized-banner-text {
+  margin: 0;
+  color: rgba(228, 228, 231, 0.72);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.personalized-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.banner-action {
+  border: 1px solid rgba(64, 224, 208, 0.3);
+  background: rgba(64, 224, 208, 0.08);
+  color: #d8fbf4;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.banner-action:hover {
+  transform: translateY(-1px);
+  border-color: rgba(64, 224, 208, 0.52);
+}
+
+.banner-action:active {
+  transform: translateY(0);
+}
+
+.banner-action.primary {
+  border-color: rgba(64, 224, 208, 0.55);
+  background: rgba(64, 224, 208, 0.16);
 }
 
 .upcoming-time {
@@ -1035,6 +1182,14 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
+  .personalized-banner {
+    flex-direction: column;
+  }
+
+  .personalized-banner-actions {
+    justify-content: flex-start;
+  }
+
   .dashboard-header {
     flex-direction: column;
     gap: 12px;
